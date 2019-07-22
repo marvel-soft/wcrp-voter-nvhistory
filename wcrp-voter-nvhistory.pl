@@ -16,6 +16,28 @@ use Math::Round;
 
 no warnings "uninitialized";
 
+use constant {
+ PERIOD20 => "11/06/2018",
+ PERIOD19 => "06/12/2018",
+ PERIOD18 => "11/08/2016",
+ PERIOD17 => "06/14/2016",
+ PERIOD16 => "11/04/2014",
+ PERIOD15 => "06/10/2014",
+ PERIOD14 => "11/06/2012",
+ PERIOD13 => "06/12/2012",
+ PERIOD12 => "09/13/2011",
+ PERIOD11 => "11/02/2010",
+ PERIOD10 => "06/08/2010",
+ PERIOD09 => "11/04/2008",
+ PERIOD08 => "08/12/2008",
+ PERIOD07 => "11/07/2006",
+ PERIOD06 => "08/05/2006",
+ PERIOD05 => "11/02/2004",
+ PERIOD04 => "09/07/2004",
+ PERIOD03 => "06/03/2003",
+ PERIOD02 => "11/05/2002",
+ PERIOD01 => "09/03/2002",
+};
 
 =head1 Function
 =over
@@ -57,13 +79,14 @@ my $linesRead    = 0;
 my $printData;
 my $linesWritten = 0;
 my $maxFiles;
+my $maxLines;
 my $stateVoterId = 0;
 my @values1;
 
 
 my $voterStatHeading = "";
 my @voterStatHeading = (
-	"State Voter ID",         #0
+	"state-voter-id",         #0
 	"Voter Status",			#1
 	"Precinct",    			#2    
 	"Last Name",			  #3
@@ -82,57 +105,35 @@ my @voterStatHeading = (
 	"military",				  #16
 
 );
-my @voterLine;
-my $voterLine;
-my @voterProfile;
+
 my @csvRowHash;
 my %csvRowHash = ();
 
 my $voterDataHeading = "";
 my @voterDataHeading = (
-	"State Voter ID",         
-  "period-20",
-  "period-19",
-  "period-18",
-  "period-17",
-  "period-16",
-  "period-15",
-  "period-14",
-  "period-13",
-  "period-12",
-  "period-11",
-  "period-10",
-  "period-09",
-  "period-08",
-  "period-07",
-  "period-06",
-  "period-05",
-  "period-04",
-  "period-03",
-  "period-02",
-  "period-01",
+  "state-voter-id",         
+  PERIOD20,
+  PERIOD19,
+  PERIOD18,
+  PERIOD17,
+  PERIOD16,
+  PERIOD15,
+  PERIOD14,
+  PERIOD13,
+  PERIOD12,
+  PERIOD11,
+  PERIOD10,
+  PERIOD09,
+  PERIOD08,
+  PERIOD07,
+  PERIOD06,
+  PERIOD05,
+  PERIOD04,
+  PERIOD03,
+  PERIOD02,
+  PERIOD01,
 );
 
-my $period20 = "11/06/2018";
-my $period19 = "06/12/2018";
-my $period18 = "11/08/2016";
-my $period17 = "06/14/2016";
-my $period16 = "11/04/2014";
-my $period15 = "06/10/2014";
-my $period14 = "11/06/2012";
-my $period13 = "06/12/2012";
-my $period12 = "09/13/2011";
-my $period11 = "11/02/2010";
-my $period10 = "06/08/2010";
-my $period09 = "11/04/2008";
-my $period08 = "08/12/2008";
-my $period07 = "11/07/2006";
-my $period06 = "08/05/2006";
-my $period05 = "11/02/2004";
-my $period04 = "09/07/2004";
-my $period03 = "06/03/2003";
-my $period02 = "11/05/2002";
-my $period01 = "09/03/2002";
 
 my $baseFile         = "extract.csv";
 my $baseFileh;
@@ -186,7 +187,7 @@ sub main {
 
 	#
 	# Initialize process loop and open first output
-  $linesRead = $maxLines;
+  $linesRead = 0;
 
   NEW:
 	while ( $line1Read = <INPUT> ) {
@@ -214,22 +215,23 @@ sub main {
 		# Assemble database load  for base segment
 		#- - - - - - - - - - - - - - - - - - - - - - - - - - 
 		%baseLine = ();
-		$baseLine{"State Voter ID"}     = $csvRowHash{"voter-id"};
+		$baseLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
 
 
-	  print $outputFileh $line1Read;
+	  print $outputFileh $line1Read. "\n";
 		
 		$linesWritten++;
 		#
 		# For now this is the in-elegant way I detect completion
-	}
+	
 		if ( eof(INPUT) ) {
 			goto EXIT;
 		}
 		next;
-	}
+		}
 	#
-	#goto NEW;
+	goto NEW;
+	}	
 
 #
 # call main program controller
@@ -237,9 +239,6 @@ main();
 #
 # Common Exit
 EXIT:
-close(INPUT);
-close($outputFileh);
-close($printFileh);
 
 printLine ("<===> Completed processing of: $inputFile \n");
 printLine ("<===> Total Records Read: $linesRead \n");
