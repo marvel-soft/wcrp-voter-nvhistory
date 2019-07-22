@@ -80,8 +80,13 @@ my $printData;
 my $linesWritten = 0;
 my $maxFiles;
 my $maxLines;
-my $stateVoterId = 0;
 my @values1;
+my @csvRowHash;
+my %csvRowHash = ();
+
+my $baseFile         = "extract.csv";
+my $baseFileh;
+my %baseLine         = ();
 
 
 my $voterStatHeading = "";
@@ -105,9 +110,6 @@ my @voterStatHeading = (
 	"military",				  #16
 
 );
-
-my @csvRowHash;
-my %csvRowHash = ();
 
 my $voterDataHeading = "";
 my @voterDataHeading = (
@@ -133,11 +135,6 @@ my @voterDataHeading = (
   PERIOD02,
   PERIOD01,
 );
-
-
-my $baseFile         = "extract.csv";
-my $baseFileh;
-my %baseLine         = ();
 
 #
 # main program controller
@@ -188,6 +185,7 @@ sub main {
 	#
 	# Initialize process loop and open first output
   $linesRead = 0;
+  my $currentVoter;
 
   NEW:
 	while ( $line1Read = <INPUT> ) {
@@ -210,6 +208,7 @@ sub main {
 
 		# Create hash of line for transformation
 		@csvRowHash{@csvHeadings} = @values1;
+		$currentVoter     = $csvRowHash{"voter-id"};
 
 		#- - - - - - - - - - - - - - - - - - - - - - - - - - 
 		# Assemble database load  for base segment
