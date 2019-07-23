@@ -50,7 +50,7 @@ use constant {
 	Output: one or more smaller csv file
 	parms:
 	'infile=s'     => \$inputFile,
-	'outfile=s'    => \$outputFile,
+	'outfile=s'    => \$voterDataFile,
 	'maxlines=s'   => \$maxLines,
 	'maxfiles=n'   => \$maxFiles,
 	'help!'        => \$helpReq,
@@ -62,8 +62,11 @@ my $inputFile = "nvsos-voter-history-test.csv";
 
 my $fileName         = "";
 
-my $outputFile        = "extracts.csv";
-my $outputFileh;
+my $baseFile        = "base.csv";
+my $baseFileh;
+my $voterDataFile        = "voterdata.csv";
+my $voterDataFileh;
+my @voterData;
 
 my $printFile        = "print-.txt";
 my $printFileh;
@@ -83,10 +86,8 @@ my $maxLines;
 my @values1;
 my @csvRowHash;
 my %csvRowHash = ();
+my $stateVoterID = 0;
 
-my $baseFile         = "extract.csv";
-my $baseFileh;
-my %baseLine         = ();
 
 
 my $voterStatHeading = "";
@@ -111,29 +112,35 @@ my @voterStatHeading = (
 
 );
 
+my $voterStatFile         = "voterstat.csv";
+my $voterStatFileh;
+my %voterStatLine         = ();
+
 my $voterDataHeading = "";
+my %voterDataLine         = ();
+my @voterDataLine;
 my @voterDataHeading = (
   "state-voter-id",         
-  PERIOD20,
-  PERIOD19,
-  PERIOD18,
-  PERIOD17,
-  PERIOD16,
-  PERIOD15,
-  PERIOD14,
-  PERIOD13,
-  PERIOD12,
-  PERIOD11,
-  PERIOD10,
-  PERIOD09,
-  PERIOD08,
-  PERIOD07,
-  PERIOD06,
-  PERIOD05,
-  PERIOD04,
-  PERIOD03,
-  PERIOD02,
-  PERIOD01,
+   "11-06-2018",
+   "06/12/2018",
+   "11/08/2016",
+   "06/14/2016",
+   "11/04/2014",
+   "06/10/2014",
+   "11/06/2012",
+   "06/12/2012",
+   "09/13/2011",
+   "11/02/2010",
+   "06/08/2010",
+   "11/04/2008",
+   "08/12/2008",
+   "11/07/2006",
+   "08/05/2006",
+   "11/02/2004",
+   "09/07/2004",
+   "06/03/2003",
+   "11/05/2002",
+   "09/03/2002",
 );
 
 #
@@ -147,7 +154,7 @@ sub main {
 	# Parse any parameters
 	GetOptions(
 		'infile=s'     => \$inputFile,
-		'outfile=s'    => \$outputFile,
+		'outfile=s'    => \$voterDataFile,
 		'maxlines=n'   => \$maxLines,
 		'maxfiles=n'   => \$maxFiles,
 		'help!'        => \$helpReq,
@@ -172,28 +179,46 @@ sub main {
 	
 	# headings in an array to modify
 	# @csvHeadings will be used to create the files
-    @csvHeadings = split( /\s*,\s*/, $csvHeadings );
+  @csvHeadings = split( /\s*,\s*/, $csvHeadings );
 
 # Build heading for new voting record
 	$voterDataHeading = join( ",", @voterDataHeading );
 	$voterDataHeading = $voterDataHeading . "\n";	
+	open( $voterDataFileh, ">$voterDataFile" )
+	  or die "Unable to open base: $voterDataFile Reason: $! \n";
+  print $voterDataFileh $voterDataHeading;
 
-	open( $outputFileh, ">$outputFile" )
-	  or die "Unable to open output: $outputFile Reason: $! \n";
-  print $outputFileh $voterDataHeading;
+# Build heading for new voting record
+	$voterStatHeading = join( ",", @voterStatHeading );
+	$voterStatHeading = $voterStatHeading . "\n";	
+	open( $voterStatFileh, ">$voterStatFile" )
+	  or die "Unable to open output: $voterStatFile Reason: $! \n";
+  print $voterStatFileh $voterStatHeading;
 
 	#
 	# Initialize process loop and open first output
   $linesRead = 0;
   my $currentVoter;
 
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# main process loop.
+#  initialize program
+#  
+#  for each of several records in input convert to csvRowHash row for unique voter
+#    - currentVoter = record-id
+#    - get record from input
+#    - if currentVoter is same as stateVoterID then add segment to row
+#      else write-the-row, 
+#      stateVoterID = currentVoter
+#   endloop
+#
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
   NEW:
 	while ( $line1Read = <INPUT> ) {
-	
-		$linesRead++;
-	
-		$linesIncRead++;
-		if ($linesIncRead == 10000) {
+		  $linesRead++;
+			if ($linesIncRead == 10000) {
 			printLine ("$linesRead lines processed \n");
 			$linesIncRead = 0; 
 		}
@@ -203,23 +228,33 @@ sub main {
 	  chop $line1Read;
 		$line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
 
-				# then create the values array
+		# then create the values array to complete preprocessing
 		@values1 = split( /\s*,\s*/, $line1Read, -1 );
-
-		# Create hash of line for transformation
 		@csvRowHash{@csvHeadings} = @values1;
+
+		# - - - - - - - - - - - - - - - - - - - - - - - - - 
+		# Create hash of line for transformation
+		# - - - - - - - - - - - - - - - - - - - - - - - - - 
 		$currentVoter     = $csvRowHash{"voter-id"};
+		if ($stateVoterID == 0) {
+      $stateVoterID = $currentVoter;
+			%voterDataLine = ();
+		}
+		if ($currentVoter eq $stateVoterID ) {
+			$voterDataLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
+			for ( my $cycle = 1 ; $cycle < 21 ; $cycle++) {
+				$voterDataLine{$cycle}               = $csvRowHash{"vote-type"};
+			}
+		  @voterData = ();
+		  foreach (@voterDataHeading) {
+			  push( @voterData, $voterDataLine{$_} );
+		  }
+			print $voterDataFileh join( ',', @voterData ), "\n";
+			%voterDataLine = ();
+		  $linesWritten++;
+		}
+		$stateVoterID = $currentVoter;
 
-		#- - - - - - - - - - - - - - - - - - - - - - - - - - 
-		# Assemble database load  for base segment
-		#- - - - - - - - - - - - - - - - - - - - - - - - - - 
-		%baseLine = ();
-		$baseLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
-
-
-	  print $outputFileh $line1Read. "\n";
-		
-		$linesWritten++;
 		#
 		# For now this is the in-elegant way I detect completion
 	
@@ -244,7 +279,8 @@ printLine ("<===> Total Records Read: $linesRead \n");
 printLine ("<===> Total Records written: $linesWritten \n");
 
 close(INPUT);
-close($outputFileh);
+close($voterDataFileh);
+close($voterStatFileh);
 close($printFileh);
 exit;
 
