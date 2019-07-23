@@ -237,18 +237,18 @@ sub main {
 		# - - - - - - - - - - - - - - - - - - - - - - - - - 
 		$currentVoter     = $csvRowHash{"voter-id"};
 		if ($stateVoterID == 0) {
-      $stateVoterID = $currentVoter;
+            $stateVoterID = $currentVoter;
 			%voterDataLine = ();
 		}
 		if ($currentVoter eq $stateVoterID ) {
 			$voterDataLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
 			for ( my $cycle = 1 ; $cycle < 21 ; $cycle++) {
-				$voterDataLine{$cycle}               = $csvRowHash{"vote-type"};
+			  $voterDataLine{$cycle}               = $csvRowHash{"vote-type"};
 			}
-		  @voterData = ();
-		  foreach (@voterDataHeading) {
+		    @voterData = ();
+		    foreach (@voterDataHeading) {
 			  push( @voterData, $voterDataLine{$_} );
-		  }
+		    }
 			print $voterDataFileh join( ',', @voterData ), "\n";
 			%voterDataLine = ();
 		  $linesWritten++;
