@@ -1,6 +1,6 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-# wcrp-voter-splitter
-#
+# wcrp-voter-nvhistory
+#  Convert the NVSOS voter data to voterStat lines
 #
 #
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -42,7 +42,7 @@ use constant {
 =head1 Function
 =over
 =head2 Overview
-	This program will split large csv files into smaller ones
+	This program will create voter extracts
 		a) no restrictions
 		b)
 	Input: any csv file with headers
@@ -60,15 +60,15 @@ use constant {
 my $records;
 my $inputFile = "nvsos-voter-history-test.csv";    
 
-my $fileName         = "";
+my $fileName           = "";
 
-my $baseFile        = "base.csv";
+my $baseFile           = "base.csv";
 my $baseFileh;
-my $voterDataFile        = "voterdata.csv";
+my $voterDataFile      = "voterdata.csv";
 my $voterDataFileh;
 my @voterData;
 
-my $printFile        = "print-.txt";
+my $printFile          = "print-.txt";
 my $printFileh;
 
 
@@ -87,6 +87,8 @@ my @values1;
 my @csvRowHash;
 my %csvRowHash = ();
 my $stateVoterID = 0;
+my $cycle;
+my @date;
 
 
 
@@ -188,7 +190,7 @@ sub main {
 	  or die "Unable to open base: $voterDataFile Reason: $! \n";
   print $voterDataFileh $voterDataHeading;
 
-# Build heading for new voting record
+# Build heading for new statistics record
 	$voterStatHeading = join( ",", @voterStatHeading );
 	$voterStatHeading = $voterStatHeading . "\n";	
 	open( $voterStatFileh, ">$voterStatFile" )
@@ -235,25 +237,39 @@ sub main {
 		# - - - - - - - - - - - - - - - - - - - - - - - - - 
 		# Create hash of line for transformation
 		# - - - - - - - - - - - - - - - - - - - - - - - - - 
+		# for first record
 		$currentVoter     = $csvRowHash{"voter-id"};
 		if ($stateVoterID == 0) {
-            $stateVoterID = $currentVoter;
+      $stateVoterID = $currentVoter;
 			%voterDataLine = ();
+			my $cycle = 1;
 		}
+		# for all records
+		finish:
 		if ($currentVoter eq $stateVoterID ) {
 			$voterDataLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
-			for ( my $cycle = 1 ; $cycle < 21 ; $cycle++) {
-			  $voterDataLine{$cycle}               = $csvRowHash{"vote-type"};
-			}
+			# add vote to correct election
+			# get election date and compare to header date (within 28 days prior)
+			@date = split( /\s*\/\s*/, $csvRowHash{"election-date"}, -1 );
+
+			$voterDataLine {$voterDataHeading[$cycle]}   = $csvRowHash{"vote-type"};
+			$cycle++;
+			next;
+		} else {
+			  for ( $cycle = $cycle ; $cycle < 21 ; $cycle++) {
+			    $voterDataLine {$voterDataHeading[$cycle]}   = " ";
+				}
 		    @voterData = ();
 		    foreach (@voterDataHeading) {
 			  push( @voterData, $voterDataLine{$_} );
-		    }
+		  }
 			print $voterDataFileh join( ',', @voterData ), "\n";
 			%voterDataLine = ();
 		  $linesWritten++;
+			$cycle = 1;
 		}
 		$stateVoterID = $currentVoter;
+		goto finish;
 
 		#
 		# For now this is the in-elegant way I detect completion
@@ -263,8 +279,6 @@ sub main {
 		}
 		next;
 		}
-	#
-	goto NEW;
 	}	
 
 #
