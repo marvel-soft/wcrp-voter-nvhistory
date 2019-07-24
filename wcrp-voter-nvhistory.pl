@@ -88,7 +88,10 @@ my @csvRowHash;
 my %csvRowHash = ();
 my $stateVoterID = 0;
 my $cycle;
+my $datecycle;
 my @date;
+my $adjustedDate;
+my $before;
 
 
 
@@ -227,7 +230,7 @@ sub main {
 		
 		# replace commas from in between double quotes with a space
 		chomp $line1Read;
-	  chop $line1Read;
+	    chop $line1Read;
 		$line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
 
 		# then create the values array to complete preprocessing
@@ -240,17 +243,29 @@ sub main {
 		# for first record
 		$currentVoter     = $csvRowHash{"voter-id"};
 		if ($stateVoterID == 0) {
-      $stateVoterID = $currentVoter;
-			%voterDataLine = ();
-			my $cycle = 1;
+          $stateVoterID = $currentVoter;
+		  %voterDataLine = ();
+		  $cycle = 1;
 		}
 		# for all records
 		finish:
 		if ($currentVoter eq $stateVoterID ) {
 			$voterDataLine{"state-voter-id"}     = $csvRowHash{"voter-id"};
 			# add vote to correct election
+			
 			# get election date and compare to header date (within 28 days prior)
+			$datecycle = 1;
 			@date = split( /\s*\/\s*/, $csvRowHash{"election-date"}, -1 );
+			$mm = sprintf( "%02d", $date[0] );
+		    $dd = sprintf( "%02d", $date[1] );
+		    $yy = sprintf( "%02d", $date[2] );
+		    $adjustedDate = "$mm/$dd/$yy";
+			if (length($yy) == 4) {;
+		   		$before = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );		
+			}
+			if (length($yy) == 2)   {
+			 	$before = Time::Piece->strptime( $adjustedDate, "%m/%d/%y" );		
+			}
 
 			$voterDataLine {$voterDataHeading[$cycle]}   = $csvRowHash{"vote-type"};
 			$cycle++;
