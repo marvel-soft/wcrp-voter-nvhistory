@@ -17,28 +17,6 @@ use Math::Round;
 
 no warnings "uninitialized";
 
-use constant {
-    PERIOD20 => "11/06/18",
-    PERIOD19 => "06/12/18",
-    PERIOD18 => "11/08/16",
-    PERIOD17 => "06/14/16",
-    PERIOD16 => "11/04/14",
-    PERIOD15 => "06/10/14",
-    PERIOD14 => "11/06/12",
-    PERIOD13 => "06/12/12",
-    PERIOD12 => "09/13/11",
-    PERIOD11 => "11/02/10",
-    PERIOD10 => "06/08/10",
-    PERIOD09 => "11/04/08",
-    PERIOD08 => "08/12/08",
-    PERIOD07 => "11/07/06",
-    PERIOD06 => "08/05/06",
-    PERIOD05 => "11/02/04",
-    PERIOD04 => "09/07/04",
-    PERIOD03 => "06/03/03",
-    PERIOD02 => "11/05/02",
-    PERIOD01 => "09/03/02",
-};
 
 =head1 Function
 =over
@@ -121,12 +99,27 @@ my $voterDataHeading = "";
 my %voterDataLine    = ();
 my @voterDataLine;
 my @voterDataHeading = (
-    "state-voter-id", "11/06/18", "06/12/18", "11/08/16",
-    "06/14/16",       "11/04/14", "06/10/14", "11/06/12",
-    "06/12/12",       "09/13/11", "11/02/10", "06/08/10",
-    "11/04/08",       "08/12/08", "11/07/06", "08/05/06",
-    "11/02/04",       "09/07/04", "06/03/03", "11/05/02",
-    "09/03/02",
+    "state-voter-id",
+    "11/06/18 general",
+    "06/12/18 primary",
+    "11/08/16 general",
+    "06/14/16 primary",
+    "11/04/14 general",
+    "06/10/14 primary",
+    "11/06/12 general",
+    "06/12/12 primary",
+    "09/13/11",
+    "11/02/10 general",
+    "06/08/10 primary",
+    "11/04/08 general",
+    "08/12/08 primary",
+    "11/07/06 general",
+    "08/05/06 primary",
+    "11/02/04 general",
+    "09/07/04 primary",
+    "06/03/03",
+    "11/05/02 general",
+    "09/03/02 primary",
 );
 
 #
@@ -254,7 +247,8 @@ sub main {
                 my $edate         = $voterDataHeading[$vote];
                 my $electiondate  = Time::Piece->strptime( $edate, "%m/%d/%y" );
                 my $twoweeksearly = $electiondate - 2 * ONE_WEEK;
-                my $nowdate = $twoweeksearly->mdy;
+                my $nowdate       = $twoweeksearly->mdy;
+
                 # test to find if the votedate fits a slot, add the vote
                 if ( $vdate >= $twoweeksearly && $vdate <= $electiondate ) {
                     $voterDataLine{ $voterDataHeading[$vote] } =
