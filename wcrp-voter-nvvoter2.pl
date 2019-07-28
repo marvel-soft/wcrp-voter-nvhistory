@@ -1,5 +1,5 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# wcrp-voter-nvhistory
+# wcrp-voter-nvvoter2
 #  Convert the voter rows to voter statistics
 #
 #
@@ -37,7 +37,7 @@ no warnings "uninitialized";
 
 my $records;
 #my $inputFile = "nvsos-voter-history-test.csv";
-my $inputFile = "vote-history-20190509.csv";
+#my $inputFile = "vote-history-20190509.csv";
 
 my $fileName = "";
 
@@ -119,7 +119,7 @@ sub main {
 
     # Parse any parameters
     GetOptions(
-        'infile=s'   => \$inputFile,
+        'infile=s'   => \$voterDataFile,
         'outfile=s'  => \$voterStatFile,
         'maxlines=n' => \$maxLines,
         'maxfiles=n' => \$maxFiles,
@@ -234,7 +234,7 @@ close(INPUT);
 close($voterDataFileh);
 close($voterStatFileh);
 
-printLine("<===> Completed processing of: $inputFile \n");
+printLine("<===> Completed processing of: $voterDataFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 

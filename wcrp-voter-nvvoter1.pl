@@ -36,8 +36,8 @@ no warnings "uninitialized";
 =cut
 
 my $records;
-#my $inputFile = "nvsos-voter-history-test.csv";
-my $inputFile = "vote-history-20190509.csv";
+my $inputFile = "nvsos-voter-history-test.csv";#
+#my $inputFile = "vote-history-20190509.csv";
 
 my $fileName = "";
 
@@ -101,14 +101,14 @@ my @voterDataLine;
 my @voterDataHeading = (
     "state-voter-id",
     "11/06/18 general",
-    "06/12/18 primary",
+    "06/12/18 special",
     "11/08/16 general",
     "06/14/16 primary",
     "11/04/14 general",
     "06/10/14 primary",
     "11/06/12 general",
     "06/12/12 primary",
-    "09/13/11",
+    "09/13/11 special",
     "11/02/10 general",
     "06/08/10 primary",
     "11/04/08 general",
@@ -117,7 +117,7 @@ my @voterDataHeading = (
     "08/05/06 primary",
     "11/02/04 general",
     "09/07/04 primary",
-    "06/03/03",
+    "06/03/03 special",
     "11/05/02 general",
     "09/03/02 primary",
 );
@@ -219,7 +219,6 @@ sub main {
             $stateVoterID  = $currentVoter;
             %voterDataLine = ();
 
-            #$cycle         = 1;
             # clear all election date buckets to blanks
             for ( $cycle = 1 ; $cycle < 20 ; $cycle++ ) {
                 $voterDataLine{ $voterDataHeading[$cycle] } = " ";
