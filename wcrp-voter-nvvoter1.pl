@@ -36,8 +36,11 @@ no warnings "uninitialized";
 =cut
 
 my $records;
-my $inputFile = "nvsos-voter-history-test.csv";#
-#my $inputFile = "vote-history-20190509.csv";
+
+#my $inputFile = "nvsos-voter-history-test.csv";#
+my $inputFile = "nvsos-voter-history-test-noheading.csv";
+
+#my $inputFile = "vote-history-large.csv";
 
 my $fileName = "";
 
@@ -55,6 +58,7 @@ my $fileCount = 0;
 
 my $csvHeadings = "";
 my @csvHeadings;
+my $data1     = "hello there";
 my $line1Read = '';
 my $linesRead = 0;
 my $printData;
@@ -68,6 +72,8 @@ my $stateVoterID = 0;
 my @date;
 my $adjustedDate;
 my $before;
+my $vote;
+my $cycle;
 
 my $voterStatHeading = "";
 my @voterStatHeading = (
@@ -98,6 +104,10 @@ my %voterStatLine = ();
 my $voterDataHeading = "";
 my %voterDataLine    = ();
 my @voterDataLine;
+my %voterTimeLine    = ();
+my @voterTimeLine;
+my $voterTimeLine;
+
 my @voterDataHeading = (
     "state-voter-id",
     "11/06/18 general",
@@ -121,7 +131,7 @@ my @voterDataHeading = (
     "11/05/02 general",
     "09/03/02 primary",
 );
-
+my $csvHeadingsFixed = "voting-history-id,voter-id,election-date,vote-type\n";
 #
 # main program controller
 #
@@ -152,9 +162,13 @@ sub main {
     }
 
     # pick out the heading line and hold it and remove end character
-    $csvHeadings = <INPUT>;
+    #$csvHeadings = <INPUT>;
+    $csvHeadings = $csvHeadingsFixed;
+
     chomp $csvHeadings;
-    chop $csvHeadings;
+
+    #chop $csvHeadings;
+    # $line1Read = <INPUT>;
 
     # headings in an array to modify
     # @csvHeadings will be used to create the files
@@ -196,8 +210,10 @@ sub main {
   NEW:
     while ( $line1Read = <INPUT> ) {
         $linesRead++;
-        if ( $linesIncRead == 10000 ) {
-            printLine("$linesRead lines processed \n");
+        if ( $linesIncRead == 100 ) {
+            print STDOUT "$linesRead lines processed \n";
+
+            # printLine("$linesRead lines processed \n");
             $linesIncRead = 0;
         }
 
@@ -235,11 +251,10 @@ sub main {
             #
             my $votedate = $csvRowHash{"election-date"};
             my $vdate    = Time::Piece->strptime( $votedate, "%m/%d/%y" );
-            my $vote;
 
             # find the correct election for this vote
             # dates must be in Time::Piece format
-            for ( my $cycle = 1, $vote = 1 ;
+            for ( $cycle = 1, $vote = 1 ;
                 $cycle < 20 ; $cycle++, $vote += 1 )
             {
                 # create the earlydate used for testing the votedate
@@ -255,8 +270,6 @@ sub main {
                     last;
                 }
             }
-
-            #   $cycle++;
             next;
         }
         else {

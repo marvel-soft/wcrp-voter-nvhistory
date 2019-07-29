@@ -36,6 +36,7 @@ no warnings "uninitialized";
 =cut
 
 my $records;
+
 #my $inputFile = "nvsos-voter-history-test.csv";
 #my $inputFile = "vote-history-20190509.csv";
 
@@ -75,38 +76,34 @@ my $voterStatHeading = "";
 my @voterStatHeading = (
     "state-voter-id",    #0
     "Voter Status",      #1
-    "Precinct",          #2
-    "Last Name",         #3
-    "null1",             #4
-    "null2",             #5
-    "null3",             #6
-    "Generals",          #7
-    "Primaries",         #8
-    "Polls",             #9
-    "Absentee",          #10
-    "null4",             #11
-    "null5",             #12
-    "null6",             #13
-    "Rank",              #14
-    "gender",            #15
-    "military",          #16
+    "Generals",          #2
+    "Primaries",         #3
+    "Polls",             #4
+    "Absentee",          #5
+    "Mail",              #6
+    "Provisional",       #7
+    "Rank",              #8
 );
 my @voterStat;
 
 my @precinctPolitical;
-my $absenteeCount  = 0;
-my $activeVOTERS   = 0;
-my $activeREP      = 0;
-my $activeDEM      = 0;
-my $activeOTHR     = 0;
-my $totalVOTERS    = 0;
-my $totalGENERALS  = 0;
-my $totalPRIMARIES = 0;
-my $totalPOLLS     = 0;
-my $totalABSENTEE  = 0;
-my $totalSTR = 0;
-my $totalMOD = 0;
-my $totalWEAK = 0;
+my $daysTotlRegistered = 0;
+my $pollCount          = 0;
+my $absenteeCount      = 0;
+my $provisionalCount   = 0;
+my $mailCount          = 0;
+my $activeVOTERS       = 0;
+my $activeREP          = 0;
+my $activeDEM          = 0;
+my $activeOTHR         = 0;
+my $totalVOTERS        = 0;
+my $totalGENERALS      = 0;
+my $totalPRIMARIES     = 0;
+my $totalPOLLS         = 0;
+my $totalABSENTEE      = 0;
+my $totalSTR           = 0;
+my $totalMOD           = 0;
+my $totalWEAK          = 0;
 
 #
 # main program controller
@@ -195,13 +192,13 @@ sub main {
         }
         $voterStatLine{"state-voter-id"} = $csvRowHash{"state-voter-id"};
         evaluateVoter();
-        $voterStatLine{"Primaries"} = $primaryCount;
-		$voterStatLine{"Generals"}  = $generalCount;
-		$voterStatLine{"Polls"}     = $pollCount;
-		$voterStatLine{"Absentee"}  = $absenteeCount;
-		$voterStatLine{"Rank"}  = $voterRank;
-
-
+        $voterStatLine{"Primaries"}   = $primaryCount;
+        $voterStatLine{"Generals"}    = $generalCount;
+        $voterStatLine{"Polls"}       = $pollCount;
+        $voterStatLine{"Absentee"}    = $absenteeCount;
+        $voterStatLine{"Mail"}        = $mailCount;
+        $voterStatLine{"Provisional"} = $provisionalCount;
+        $voterStatLine{"Rank"}        = $voterRank;
 
         # write out voter stats
         @voterStat = ();
@@ -270,19 +267,19 @@ sub evaluateVoter {
     my $primaryPollCount  = 0;
     my $primaryEarlyCount = 0;
     my $primaryNotVote    = 0;
-    $generalCount  = 0;
-    $primaryCount  = 0;
-    $pollCount     = 0;
-    $absenteeCount = 0;
-    $voterRank     = '';
+    $generalCount     = 0;
+    $primaryCount     = 0;
+    $pollCount        = 0;
+    $absenteeCount    = 0;
+    $mailCount        = 0;
+    $provisionalCount = 0;
+    $voterRank        = '';
 
     #set first vote in list
     my $vote = 2;
-    my $cyc;
 
     #my $daysRegistered = $newLine{"Days Registered"};
     for ( my $cycle = 1 ; $cycle < 20 ; $cycle++, $vote += 1 ) {
-        $cyc = $cycle;
 
         #skip mock election
         if ( ( $csvHeadings[$vote] ) =~ m/mock/ ) {
@@ -336,8 +333,20 @@ sub evaluateVoter {
                 $absenteeCount     += 1;
                 next;
             }
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
+                $generalEarlyCount += 1;
+                $generalCount      += 1;
+                $mailCount         += 1;
+                next;
+            }
         }
-        #
+        if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
+            $primaryEarlyCount += 1;
+            $primaryCount      += 1;
+            $provisionalCount  += 1;
+            next;
+        }
+
         # record a primary vote
         # if there is no vote recorded shown with a "blank" then NOT ELEGIBLE
         #
@@ -350,16 +359,29 @@ sub evaluateVoter {
                 $primaryNotVote += 1;
                 next;
             }
-            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PP'  ) {
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PP' ) {
                 $primaryPollCount += 1;
                 $primaryCount     += 1;
                 $pollCount        += 1;
                 next;
             }
-            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV'  ) {
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
                 $primaryEarlyCount += 1;
                 $primaryCount      += 1;
                 $absenteeCount     += 1;
+                next;
+            }
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
+                $primaryEarlyCount += 1;
+                $primaryCount      += 1;
+                $mailCount         += 1;
+                next;
+            }
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
+                $primaryEarlyCount += 1;
+                $primaryCount      += 1;
+                $provisionalCount  += 1;
+                next;
             }
         }
     }
@@ -456,9 +478,8 @@ sub evaluateVoter {
     if    ( $voterRank eq 'STRONG' )   { $totalSTR++; }
     elsif ( $voterRank eq 'MODERATE' ) { $totalMOD++; }
     elsif ( $voterRank eq 'WEAK' )     { $totalWEAK++; }
-    
 
-      if ( $primaryCount != 0 ) {
+    if ( $primaryCount != 0 ) {
         if ( $leansDemCount != 0 ) {
             if ( $leansDemCount / $primaryCount > .5 ) {
                 $leanDem = 1;
