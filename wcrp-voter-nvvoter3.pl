@@ -34,14 +34,15 @@ my $records;
 #my $inputFile 				= "../test-in/nv-washoe-voter-20190219.csv";
 #my $inputFile 				= "../wcrp-voter-splitter/VoterList.ElgbVtr.20190327-1.csv";
 
-my $inputFile = "../prod-load-washoe/VoterList.washoe.ElgbVtr-20190218.csv";
-my $voterStatsFile = "voterstat.csv";
+my $inputFile = "..VoterList.washoe.ElgbVtr-20190218.csv";
 
 #my $inputFile 				= "base-nvtables-merge-test.csv";    #
 #my $voterStatsFile    = "sorted-extracts-test.csv";
-my $voterEmailFile = "email-sort.csv";
 
-my $voterEmailFileh;ˇ
+my $voterEmailFile = "email-sort.csv";
+my $voterEmailFileh;
+
+my $voterStatsFile = "voterstat.csv";
 my $voterStatsFileh;
 
 my $adPoliticalFile = "../prod-in1/adall-precincts-jul.csv";
@@ -187,20 +188,6 @@ my @emailHeading =
 my @votingLine;
 my $votingLine;
 my @votingProfile;
-my $votingHeading = "";
-my @votingHeading = (
-    "state_id",   "voter_id", "publish_date", "party",
-    "election01", "vote01",   "election02",   "vote02",
-    "election03", "vote03",   "election04",   "vote04",
-    "election05", "vote05",   "election06",   "vote06",
-    "election07", "vote07",   "election08",   "vote08",
-    "election09", "vote09",   "election10",   "vote10",
-    "election11", "vote11",   "election12",   "vote12",
-    "election13", "vote13",   "election14",   "vote14",
-    "election15", "vote15",   "election16",   "vote16",
-    "election17", "vote17",   "election18",   "vote18",
-    "election19", "vote19",   "election20",   "vote20"
-);
 
 my $precinct = "000000";
 
@@ -248,10 +235,6 @@ sub main {
     $baseHeading = $baseHeading . "\n";
 
     # Build heading for new voting record
-    $votingHeading = join( ",", @votingHeading );
-    $votingHeading = $votingHeading . "\n";
-
-    # Build heading for new voting record
     $emailHeading = join( ",", @emailHeading );
     $emailHeading = $emailHeading . "\n";
     #
@@ -260,12 +243,6 @@ sub main {
     open( $baseFileh, ">$baseFile" )
       or die "Unable to open baseFile: $baseFile Reason: $!";
     print $baseFileh $baseHeading;
-
-    printLine("Voter Voting-table file: $votingFile\n");
-    printLine("My votingFile is: $votingFile.\n");
-    open( $votingFileh, ">$votingFile" )
-      or die "Unable to open votingFileh: $votingFile Reason: $!";
-    print $votingFileh $votingHeading;
 
     # initialize the voter email log and the email array
     if ( $voterEmailFile ne "" ) {
@@ -277,16 +254,20 @@ sub main {
         voterEmailLoad(@voterEmailArray);
     }
 
+    # if voter stats are available load the hash table
     if ( $voterStatsFile ne "" ) {
         printLine("Voter Stats file: $voterStatsFile\n");
         voterStatsLoad(@voterStatsArray);
     }
 
+    #----------------------------------------------------------
     # Process loop
     # Read the entire input and
     # 1) edit the input lines
     # 2) transform the data
     # 3) write out transformed line
+    #----------------------------------------------------------
+
   NEW:
     while ( $line1Read = <INPUT> ) {
         $linesRead++;
@@ -382,17 +363,17 @@ sub main {
         #
         $stats = binary_search( \@voterStatsArray, $voterid );
         if ( $stats != -1 ) {
-            $baseLine{"Gender"} = $voterStatsArray[$stats][15];
             my $mil = $voterStatsArray[$stats][16];
             chop $mil;
             $baseLine{"Military"}      = $mil;
+            $baseLine{"Reg Date Orig"} = $voterStatsArray[$stats][4];
+            $baseLine{"Days Totl Reg"} = $voterStatsArray[$stats][5];
+            $baseLine{"Age"}           = $voterStatsArray[$stats][6];
             $baseLine{"Generals"}      = $voterStatsArray[$stats][7];
             $baseLine{"Primaries"}     = $voterStatsArray[$stats][8];
             $baseLine{"Leans"}         = $voterStatsArray[$stats][13];
             $baseLine{"Strength"}      = $voterStatsArray[$stats][14];
-            $baseLine{"Reg Date Orig"} = $voterStatsArray[$stats][4];
-            $baseLine{"Days Totl Reg"} = $voterStatsArray[$stats][5];
-            $baseLine{"Age"}           = $voterStatsArray[$stats][6];
+            $baseLine{"Gender"}        = $voterStatsArray[$stats][15];
             $statsAdded                = $statsAdded + 1;
         }
 #
