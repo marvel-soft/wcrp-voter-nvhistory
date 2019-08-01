@@ -27,7 +27,7 @@ no warnings "uninitialized";
 	       
 	Output: one or more smaller csv file
 	parms:
-	'infile=s'     => \$inputFile,
+	'infile=s'     => \$voterHistoryFileFile,
 	'outfile=s'    => \$voterDataFile,
 	'maxlines=s'   => \$maxLines,
 	'maxfiles=n'   => \$maxFiles,
@@ -37,18 +37,19 @@ no warnings "uninitialized";
 
 my $records;
 
-#my $inputFile = "nvsos-voter-history-test.csv";#
-my $inputFile = "nvsos-voter-history-test-noheading.csv";
+#my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
-#my $inputFile = "vote-history-large.csv";
+my $voterHistoryFile = "VoterList.VtHist.100.csv";
+my $voterHistoryFileh;
+my @voterHistoryLine = ();
+my %voterHistoryLine;
 
-my $fileName = "";
-
-my $baseFile = "base.csv";
-my $baseFileh;
-my $voterDataFile = "voterdata.csv";
+my $voterDataHeading = "";
+my $voterDataFile    = "voterdata.csv";
 my $voterDataFileh;
 my @voterData;
+my %voterDataLine = ();
+my @voterDataLine;
 
 my $printFile = "print-.txt";
 my $printFileh;
@@ -58,7 +59,6 @@ my $fileCount = 0;
 
 my $csvHeadings = "";
 my @csvHeadings;
-my $data1     = "hello there";
 my $line1Read = '';
 my $linesRead = 0;
 my $printData;
@@ -74,39 +74,6 @@ my $adjustedDate;
 my $before;
 my $vote;
 my $cycle;
-
-my $voterStatHeading = "";
-my @voterStatHeading = (
-    "state-voter-id",    #0
-    "Voter Status",      #1
-    "Precinct",          #2
-    "Last Name",         #3
-    "null1",             #4
-    "null2",             #5
-    "null3",             #6
-    "Generals",          #7
-    "Primaries",         #8
-    "Polls",             #9
-    "Absentee",          #10
-    "LeansDEM",          #11
-    "LeansREP",          #12
-    "Leans",             #13
-    "Rank",              #14
-    "gender",            #15
-    "military",          #16
-
-);
-
-my $voterStatFile = "voterstat.csv";
-my $voterStatFileh;
-my %voterStatLine = ();
-
-my $voterDataHeading = "";
-my %voterDataLine    = ();
-my @voterDataLine;
-my %voterTimeLine    = ();
-my @voterTimeLine;
-my $voterTimeLine;
 
 my @voterDataHeading = (
     "state-voter-id",
@@ -131,7 +98,7 @@ my @voterDataHeading = (
     "11/05/02 general",
     "09/03/02 primary",
 );
-my $csvHeadingsFixed = "voting-history-id,voter-id,election-date,vote-type\n";
+
 #
 # main program controller
 #
@@ -143,7 +110,7 @@ sub main {
 
     # Parse any parameters
     GetOptions(
-        'infile=s'   => \$inputFile,
+        'infile=s'   => \$voterHistoryFile,
         'outfile=s'  => \$voterDataFile,
         'maxlines=n' => \$maxLines,
         'maxfiles=n' => \$maxFiles,
@@ -154,21 +121,24 @@ sub main {
         print "Come on, it's really not that hard. \n";
     }
     else {
-        printLine("My inputfile is: $inputFile. \n");
+        printLine("My voterHistoryFile is: $voterHistoryFile. \n");
     }
-    unless ( open( INPUT, $inputFile ) ) {
-        printLine("Unable to open INPUT: $inputFile Reason: $! \n");
+    unless ( open( $voterHistoryFileh, $voterHistoryFile ) ) {
+        printLine(
+            "Unable to open voterHistoryFileh: $voterHistoryFile Reason: $! \n"
+        );
         die;
     }
 
     # pick out the heading line and hold it and remove end character
-    #$csvHeadings = <INPUT>;
-    $csvHeadings = $csvHeadingsFixed;
+    $csvHeadings = <$voterHistoryFileh>;
 
     chomp $csvHeadings;
-
-    #chop $csvHeadings;
-    # $line1Read = <INPUT>;
+    chop $csvHeadings;
+    
+    # remove imbedded commas and imbedded spaces from headers
+    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+    $csvHeadings =~ s/(?<! ) (?! )//g;
 
     # headings in an array to modify
     # @csvHeadings will be used to create the files
@@ -181,13 +151,6 @@ sub main {
       or die "Unable to open base: $voterDataFile Reason: $! \n";
     print $voterDataFileh $voterDataHeading;
 
-    # Build heading for new statistics record
-    $voterStatHeading = join( ",", @voterStatHeading );
-    $voterStatHeading = $voterStatHeading . "\n";
-    open( $voterStatFileh, ">$voterStatFile" )
-      or die "Unable to open output: $voterStatFile Reason: $! \n";
-    print $voterStatFileh $voterStatHeading;
-
     #
     # Initialize process loop and open first output
     $linesRead = 0;
@@ -197,9 +160,9 @@ sub main {
 # main process loop.
 #  initialize program
 #
-#  for each of several records in input convert to csvRowHash row for unique voter
+#  for each of several records in voterHistoryFileh convert to csvRowHash row for unique voter
 #    - currentVoter = record-id
-#    - get record from input
+#    - get record from voterHistoryFileh
 #    - if currentVoter is same as stateVoterID then add segment to row
 #      else write-the-row,
 #      stateVoterID = currentVoter
@@ -208,7 +171,7 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-    while ( $line1Read = <INPUT> ) {
+    while ( $line1Read = <$voterHistoryFileh> ) {
         $linesRead++;
         if ( $linesIncRead == 100 ) {
             print STDOUT "$linesRead lines processed \n";
@@ -230,7 +193,7 @@ sub main {
         # Create hash of line for transformation
         # - - - - - - - - - - - - - - - - - - - - - - - - -
         # for first record of a series for a voter
-        $currentVoter = $csvRowHash{"voter-id"};
+        $currentVoter = $csvRowHash{"VoterID"};
         if ( $stateVoterID == 0 ) {
             $stateVoterID  = $currentVoter;
             %voterDataLine = ();
@@ -245,20 +208,19 @@ sub main {
         # votes by election
       finish:
         if ( $currentVoter eq $stateVoterID ) {
-            $voterDataLine{"state-voter-id"} = $csvRowHash{"voter-id"};
+            $voterDataLine{"state-voter-id"} = $csvRowHash{"VoterID"};
             #
             # place vote in correct bucket (14 days <= electiondate)
             #
-            my $votedate = $csvRowHash{"election-date"};
+            my $votedate = substr( $csvRowHash{"ElectionDate"}, 0, 8 );
             my $vdate    = Time::Piece->strptime( $votedate, "%m/%d/%y" );
 
             # find the correct election for this vote
             # dates must be in Time::Piece format
-            for ( $cycle = 1, $vote = 1 ;
-                $cycle < 20 ; $cycle++, $vote += 1 )
-            {
+            for ( $cycle = 1, $vote = 1 ; $cycle < 20 ; $cycle++, $vote += 1 ) {
+
                 # create the earlydate used for testing the votedate
-                my $edate         = $voterDataHeading[$vote];
+                my $edate         = substr( $voterDataHeading[$vote], 0, 8 );
                 my $electiondate  = Time::Piece->strptime( $edate, "%m/%d/%y" );
                 my $twoweeksearly = $electiondate - 2 * ONE_WEEK;
                 my $nowdate       = $twoweeksearly->mdy;
@@ -266,7 +228,7 @@ sub main {
                 # test to find if the votedate fits a slot, add the vote
                 if ( $vdate >= $twoweeksearly && $vdate <= $electiondate ) {
                     $voterDataLine{ $voterDataHeading[$vote] } =
-                      $csvRowHash{"vote-type"};
+                      $csvRowHash{"VoteCode"};
                     last;
                 }
             }
@@ -287,7 +249,7 @@ sub main {
 
         #
         # For now this is the in-elegant way I detect completion
-        if ( eof(INPUT) ) {
+        if ( eof(voterHistoryFileh) ) {
             goto EXIT;
         }
         next;
@@ -301,11 +263,10 @@ main();
 # Common Exit
 EXIT:
 
-close(INPUT);
+close(voterHistoryFileh);
 close($voterDataFileh);
-close($voterStatFileh);
 
-printLine("<===> Completed processing of: $inputFile \n");
+printLine("<===> Completed processing of: $voterHistoryFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 

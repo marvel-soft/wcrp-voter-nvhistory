@@ -1,6 +1,7 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # wcrp-voter-nvvoter2
-#  Convert the voter rows to voter statistics
+#  Convert the voter data rows to voter statistics
+#   - requires the file voterValues as supplemental input
 #
 #
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -37,10 +38,10 @@ no warnings "uninitialized";
 
 my $records;
 
-#my $inputFile = "nvsos-voter-history-test.csv";
-#my $inputFile = "vote-history-20190509.csv";
-
-my $fileName = "";
+my $voterValuesFile = "votervalues.csv";
+my $voterValuesFileh;
+my @voterValuesArray;
+my %voterValuesArray;
 
 my $voterDataFile = "voterdata.csv";
 my $voterDataFileh;
@@ -64,25 +65,26 @@ my $maxFiles;
 my $maxLines;
 my @values1;
 my @csvRowHash;
-my %csvRowHash   = ();
-my $stateVoterID = 0;
+my %csvRowHash = ();
 my @date;
+my $voterid;
 my $adjustedDate;
-my $before;
 
 my %voterStatLine = ();
 my @voterStatLine;
 my $voterStatHeading = "";
 my @voterStatHeading = (
-    "state-voter-id",    #0
-    "Voter Status",      #1
-    "Generals",          #2
-    "Primaries",         #3
-    "Polls",             #4
-    "Absentee",          #5
-    "Mail",              #6
-    "Provisional",       #7
-    "Rank",              #8
+    "state-voter-id",     #0
+    "Voter Status",       #1
+    "Age",                #3
+    "Registered Days",    #4
+    "Generals",           #5
+    "Primaries",          #6
+    "Polls",              #7
+    "Absentee",           #8
+    "Mail",               #9
+    "Provisional",        #10
+    "Rank",               #11
 );
 my @voterStat;
 
@@ -101,6 +103,8 @@ my $totalGENERALS      = 0;
 my $totalPRIMARIES     = 0;
 my $totalPOLLS         = 0;
 my $totalABSENTEE      = 0;
+my $totalPROVISIONAL   = 0;
+my $totalMAIL          = 0;
 my $totalSTR           = 0;
 my $totalMOD           = 0;
 my $totalWEAK          = 0;
@@ -139,8 +143,11 @@ sub main {
     chomp $csvHeadings;
     chop $csvHeadings;
 
+    # remove imbedded commas and imbedded spaces from headers
+    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+    $csvHeadings =~ s/(?<! ) (?! )//g;
+
     # headings in an array to modify
-    # @csvHeadings will be used to create the files
     @csvHeadings = split( /\s*,\s*/, $csvHeadings );
 
     # Build heading for new statistics record
@@ -149,6 +156,12 @@ sub main {
     open( $voterStatFileh, ">$voterStatFile" )
       or die "Unable to open output: $voterStatFile Reason: $! \n";
     print $voterStatFileh $voterStatHeading;
+
+    # if voter stats are available load the hash table
+    if ( $voterValuesFile ne "" ) {
+        printLine("Voter values file: $voterValuesFile\n");
+        voterValuesLoad(@voterValuesArray);
+    }
 
     #
     # Initialize process loop and open first output
@@ -190,7 +203,55 @@ sub main {
         for ( $cycle = 1 ; $cycle < 20 ; $cycle++ ) {
             $voterStatLine{ $voterStatHeading[$cycle] } = " ";
         }
+        #
+        #  locate county data
+        #
+        $stats = binary_search( \@voterValuesArray, $voterid );
+        if ( $stats != -1 ) {
+            $voterStatLine{"Precinct"}  = $voterValuesArray[$stats][1];
+            $voterStatLine{"LastName"}  = $voterValuesArray[$stats][2];
+            $voterStatLine{"Birthdate"} = $voterValuesArray[$stats][3];
+            my $birthdate = $voterValuesArray[$stats][3];
+            $voterStatLine{"Reg-Date"} = $voterValuesArray[$stats][4];
+            my $regdate = $voterValuesArray[$stats][4];
+            $voterStatLine{"Party"}        = $voterValuesArray[$stats][5];
+            $voterStatLine{"Voter Status"} = $voterValuesArray[$stats][6];
+
+            # determine age
+            my ( @date, $yy, $mm, $dd, $now, $age, $regdays );
+            @date = split( /\s*\/\s*/, $birthdate, -1 );
+            $mm   = sprintf( "%02d", $date[0] );
+            $dd   = sprintf( "%02d", $date[1] );
+            $yy   = sprintf( "%02d", $date[2] );
+            if    ( $yy <= 20 ) { $yy = 2000 + $yy }
+            elsif ( $yy > 20 )  { $yy = 1900 + $yy }
+            $adjustedDate = "$mm/$dd/$yy";
+            $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
+            $now          = localtime;
+            $age          = $now - $before;
+            $age          = ( $age / (86400) / 365 );
+            $age          = round($age);
+            $voterStatLine{"Age"} = $age;
+
+            # determine registered days
+            @date = split( /\s*\/\s*/, $regdate, -1 );
+            $mm   = sprintf( "%02d", $date[0] );
+            $dd   = sprintf( "%02d", $date[1] );
+            $yy   = sprintf( "%02d", $date[2] );
+            if    ( $yy <= 20 ) { $yy = 2000 + $yy }
+            elsif ( $yy > 20 )  { $yy = 1900 + $yy }
+            $adjustedDate = "$mm/$dd/$yy";
+            $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
+            $now          = localtime;
+            $regdays      = $now - $before;
+            $regdays      = ( $regdays / (86400) );
+            $regdays      = round($regdays);
+            $voterStatLine{"Registered Days"} = $regdays;
+            $statsAdded = $statsAdded + 1;
+        }
+
         $voterStatLine{"state-voter-id"} = $csvRowHash{"state-voter-id"};
+        $voterid = $csvRowHash{"state-voter-id"};
         evaluateVoter();
         $voterStatLine{"Primaries"}   = $primaryCount;
         $voterStatLine{"Generals"}    = $generalCount;
@@ -230,6 +291,7 @@ EXIT:
 close(INPUT);
 close($voterDataFileh);
 close($voterStatFileh);
+close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterDataFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
@@ -275,10 +337,10 @@ sub evaluateVoter {
     $provisionalCount = 0;
     $voterRank        = '';
 
-    #set first vote in list
+    #set pointer to first vote in list
     my $vote = 2;
 
-    #my $daysRegistered = $newLine{"Days Registered"};
+    my $daysRegistered = $voterStatLine{"Registered Days"};
     for ( my $cycle = 1 ; $cycle < 20 ; $cycle++, $vote += 1 ) {
 
         #skip mock election
@@ -340,7 +402,7 @@ sub evaluateVoter {
                 next;
             }
         }
-        if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
+        if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
             $primaryEarlyCount += 1;
             $primaryCount      += 1;
             $provisionalCount  += 1;
@@ -492,10 +554,70 @@ sub evaluateVoter {
         }
     }
 
-    $totalGENERALS  = $totalGENERALS + $generalCount;
-    $totalPRIMARIES = $totalPRIMARIES + $primaryCount;
-    $totalPOLLS     = $totalPOLLS + $pollCount;
-    $totalABSENTEE  = $totalABSENTEE + $absenteeCount;
-    $totalLEANREP   = $totalLEANREP + $leanRep;
-    $totalLEANDEM   = $totalLEANDEM + $leanDem;
+    $totalGENERALS    = $totalGENERALS + $generalCount;
+    $totalPRIMARIES   = $totalPRIMARIES + $primaryCount;
+    $totalPOLLS       = $totalPOLLS + $pollCount;
+    $totalABSENTEE    = $totalABSENTEE + $absenteeCount;
+    $totalPROVISIONAL = $totalPROVISIONAL + $provisionalCount;
+    $totalLEANREP     = $totalLEANREP + $leanRep;
+    $totalLEANDEM     = $totalLEANDEM + $leanDem;
+}
+
+# $index = binary_search( \@array, $word )
+#   @array is a list of lowercase strings in alphabetical order.
+#   $word is the target word that might be in the list.
+#   binary_search() returns the array index such that $array[$index]
+#   is $word.
+sub binary_search {
+    my ( $try,   $var );
+    my ( $array, $word ) = @_;
+    my ( $low,   $high ) = ( 0, @$array - 1 );
+    while ( $low <= $high ) {    # While the window is open
+        $try = int( ( $low + $high ) / 2 );    # Try the middle element
+        $var = $array->[$try][0];
+        $low  = $try + 1, next if $array->[$try][0] < $word;    # Raise bottom
+        $high = $try - 1, next if $array->[$try][0] > $word;    # Lower top
+        return $try;    # We've found the word!
+    }
+    $try = -1;
+    return;             # The word isn't there.
+}
+#
+# binay search for character strings
+#
+sub binary_ch_search {
+    my ( $try,   $var );
+    my ( $array, $word ) = @_;
+    my ( $low,   $high ) = ( 0, @$array - 1 );
+    while ( $low <= $high ) {    # While the window is open
+        $try = int( ( $low + $high ) / 2 );    # Try the middle element
+        $var = $array->[$try][0];
+        $low  = $try + 1, next if $array->[$try][0] lt $word;    # Raise bottom
+        $high = $try - 1, next if $array->[$try][0] gt $word;    # Lower top
+        return $try;    # We've found the word!
+    }
+    $try = -1;
+    return;             # The word isn't there.
+}
+#
+# create the voter stats binary search array
+#
+sub voterValuesLoad() {
+    $voterValuesHeadings = "";
+    open( $voterValuesFileh, $voterValuesFile )
+      or die "Unable to open INPUT: $voterValuesFile Reason: $!";
+    $voterValuesHeadings = <$voterValuesFileh>;
+    chomp $voterValuesHeadings;
+
+    # headings in an array to modify
+    @voterValuesHeadings = split( /\s*,\s*/, $voterValuesHeadings );
+
+    # Build the UID->survey hash
+    while ( $line1Read = <$voterValuesFileh> ) {
+        chomp $line1Read;
+        my @values1 = split( /\s*,\s*/, $line1Read, -1 );
+        push @voterValuesArray, \@values1;
+    }
+    close $voterValuesFileh;
+    return @voterValuesArray;
 }

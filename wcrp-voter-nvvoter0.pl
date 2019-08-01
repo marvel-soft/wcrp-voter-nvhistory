@@ -1,7 +1,7 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # wcrp-voter-nvhistory
 #  Create nv voter extracts with key values used to create
-#  voter summary
+#  voter stats
 #
 #
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -45,7 +45,7 @@ my $inputFile = "VoterList.Elgbvtr.100.csv";
 my $voterValueFile = "votervalues.csv";
 my $voterValueFileh;
 my @voterValuesLine = ();
-my %voterValuesLine; 
+my %voterValuesLine;
 my @voterValues;
 
 my $printFile = "print-.txt";
@@ -69,16 +69,14 @@ my %csvRowHash = ();
 my $voterValuesHeading = "";
 my @voterValuesHeading = (
     "state-voter-id",    #0
-    "Voter Status",      #1
     "Precinct",          #2
-    "Last Name",         #3
-    "Birth Data",        #4
-    "Reg Date",         #5
-
+    "LastName",          #3
+    "Birthdate",         #4
+    "Reg-Date",          #5
+    "Party",             #6
+    "Status",            #7
 );
 
-my $csvHeadingsFixed = "voting-history-id,voter-id,election-date,vote-type\n";
-#
 # main program controller
 #
 sub main {
@@ -108,13 +106,12 @@ sub main {
     }
 
     # pick out the heading line and hold it and remove end character
-    #$csvHeadings = <INPUT>;
-    $csvHeadings = $csvHeadingsFixed;
-
+    $csvHeadings = <INPUT>;
     chomp $csvHeadings;
 
-    #chop $csvHeadings;
-    # $line1Read = <INPUT>;
+    # remove imbedded commas and imbedded spaces from headers
+    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+    $csvHeadings =~ s/(?<! ) (?! )//g;
 
     # headings in an array to modify
     # @csvHeadings will be used to create the files
@@ -127,17 +124,9 @@ sub main {
       or die "Unable to open base: $voterValueFile Reason: $! \n";
     print $voterValueFileh $voterValuesHeading;
 
-    # Build heading for new statistics record
-    $voterValuesHeading = join( ",", @voterValuesHeading );
-    $voterValuesHeading = $voterValuesHeading . "\n";
-    open( $voterStatFileh, ">$voterStatFile" )
-      or die "Unable to open output: $voterStatFile Reason: $! \n";
-    print $voterStatFileh $voterValuesHeading;
-
     #
     # Initialize process loop and open first output
     $linesRead = 0;
-    my $currentVoter;
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # main process loop.
@@ -159,13 +148,11 @@ sub main {
         if ( $linesIncRead == 100 ) {
             print STDOUT "$linesRead lines processed \n";
 
-            # printLine("$linesRead lines processed \n");
             $linesIncRead = 0;
         }
 
         # replace commas from in between double quotes with a space
         chomp $line1Read;
-        chop $line1Read;
         $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
 
         # then create the values array to complete preprocessing
@@ -176,13 +163,25 @@ sub main {
         # Create hash of line for transformation
         # - - - - - - - - - - - - - - - - - - - - - - - - -
         # for first record of a series for a voter
-        
 
-          # votes by election
+        # votes by election
 
-        $voterValuesLine{"state-voter-id"} = $csvRowHash{"state-voter-id"};
-        next;
-    }
+        $voterValuesLine{"state-voter-id"} = $csvRowHash{"VoterID"};
+        $voterValuesLine{"Party"}          = $csvRowHash{"Party"};
+        $voterValuesLine{"LastName"}       = $csvRowHash{"LastName"};
+        $voterValuesLine{"Precinct"}       = $csvRowHash{"RegisteredPrecinct"};
+        my @date = split( /\s*\/\s*/, $csvRowHash{"BirthDate"}, -1 );
+        $mm = sprintf( "%02d", $date[0] );
+        $dd = sprintf( "%02d", $date[1] );
+        $yy = sprintf( "%02d", $date[2] );
+        $voterValuesLine{"Birthdate"} = "$mm/$dd/$yy";
+        @date = split( /\s*\/\s*/, $csvRowHash{"RegistrationDate"}, -1 );
+        $mm   = sprintf( "%02d", $date[0] );
+        $dd   = sprintf( "%02d", $date[1] );
+        $yy   = sprintf( "%02d", $date[2] );
+        $voterValuesLine{"Reg-Date"} = "$mm/$dd/$yy";
+        $voterValuesLine{"Status"}   = $csvRowHash{"CountyStatus"};
+
         # prepare to write out the voter data
         @voterValues = ();
         foreach (@voterValuesHeading) {
@@ -191,7 +190,8 @@ sub main {
         print $voterValueFileh join( ',', @voterValues ), "\n";
         %voterValuesLine = ();
         $linesWritten++;
-    goto NEW;
+        goto NEW;
+    }
 
     #
     # For now this is the in-elegant way I detect completion
@@ -200,7 +200,6 @@ sub main {
     }
     next;
 }
-
 
 #
 # call main program controller
@@ -211,7 +210,6 @@ EXIT:
 
 close(INPUT);
 close($voterValueFileh);
-close($voterStatFileh);
 
 printLine("<===> Completed processing of: $inputFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
