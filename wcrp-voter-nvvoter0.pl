@@ -29,7 +29,7 @@ no warnings "uninitialized";
 	Output: one or more smaller csv file
 	parms:
 	'infile=s'     => \$inputFile,
-	'outfile=s'    => \$voterValueFile,
+	'outfile=s'    => \$voterValuesFile,
 	'maxlines=s'   => \$maxLines,
 	'maxfiles=n'   => \$maxFiles,
 	'help!'        => \$helpReq,
@@ -40,10 +40,12 @@ my $records;
 
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
-my $inputFile = "VoterList.Elgbvtr.100.csv";
+#my $inputFile = "VoterList.Elgbvtr.100.csv";
 
-my $voterValueFile = "votervalues.csv";
-my $voterValueFileh;
+my $inputFile = "VoterList.ElgbVtr.073019.csv";
+
+my $voterValuesFile = "votervalues.csv";
+my $voterValuesFileh;
 my @voterValuesLine = ();
 my %voterValuesLine;
 my @voterValues;
@@ -88,7 +90,7 @@ sub main {
     # Parse any parameters
     GetOptions(
         'infile=s'   => \$inputFile,
-        'outfile=s'  => \$voterValueFile,
+        'outfile=s'  => \$voterValuesFile,
         'maxlines=n' => \$maxLines,
         'maxfiles=n' => \$maxFiles,
         'help!'      => \$helpReq,
@@ -112,21 +114,23 @@ sub main {
     # remove imbedded commas and imbedded spaces from headers
     $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
     $csvHeadings =~ s/(?<! ) (?! )//g;
+    $csvHeadings =~ s/"//g;
 
-    # headings in an array to modify
-    # @csvHeadings will be used to create the files
-    @csvHeadings = split( /\s*,\s*/, $csvHeadings );
+      # headings in an array to modify
+      # @csvHeadings will be used to create the files
+      @csvHeadings = split( /\s*,\s*/, $csvHeadings );
 
     # Build heading for new voting record
     $voterValuesHeading = join( ",", @voterValuesHeading );
     $voterValuesHeading = $voterValuesHeading . "\n";
-    open( $voterValueFileh, ">$voterValueFile" )
-      or die "Unable to open base: $voterValueFile Reason: $! \n";
-    print $voterValueFileh $voterValuesHeading;
+    open( $voterValuesFileh, ">$voterValuesFile" )
+      or die "Unable to open base: $voterValuesFile Reason: $! \n";
+    print $voterValuesFileh $voterValuesHeading;
 
     #
     # Initialize process loop and open first output
-    $linesRead = 0;
+    $linesRead    = 0;
+    $linesIncRead = 0;
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # main process loop.
@@ -145,18 +149,21 @@ sub main {
   NEW:
     while ( $line1Read = <INPUT> ) {
         $linesRead++;
+        $linesIncRead++;
         if ( $linesIncRead == 100 ) {
             print STDOUT "$linesRead lines processed \n";
+            print "$linesRead lines processed \n";
 
             $linesIncRead = 0;
         }
 
         # replace commas from in between double quotes with a space
         chomp $line1Read;
-        $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+        $line1Read   =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+        $line1Read =~ s/"//g;
 
-        # then create the values array to complete preprocessing
-        @values1 = split( /\s*,\s*/, $line1Read, -1 );
+          # then create the values array to complete preprocessing
+          @values1 = split( /\s*,\s*/, $line1Read, -1 );
         @csvRowHash{@csvHeadings} = @values1;
 
         # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -187,7 +194,7 @@ sub main {
         foreach (@voterValuesHeading) {
             push( @voterValues, $voterValuesLine{$_} );
         }
-        print $voterValueFileh join( ',', @voterValues ), "\n";
+        print $voterValuesFileh join( ',', @voterValues ), "\n";
         %voterValuesLine = ();
         $linesWritten++;
         goto NEW;
@@ -209,7 +216,7 @@ main();
 EXIT:
 
 close(INPUT);
-close($voterValueFileh);
+close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $inputFile \n");
 printLine("<===> Total Records Read: $linesRead \n");

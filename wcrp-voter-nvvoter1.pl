@@ -39,7 +39,7 @@ my $records;
 
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
-my $voterHistoryFile = "VoterList.VtHist.100.csv";
+my $voterHistoryFile = "VoterList.VtHst.073019.csv";
 my $voterHistoryFileh;
 my @voterHistoryLine = ();
 my %voterHistoryLine;
@@ -74,8 +74,11 @@ my $adjustedDate;
 my $before;
 my $vote;
 my $cycle;
+my $totalVotes = 0;
+my $linesIncRead = 0;
+my $linesIncWritten = 0;
 
-my @voterDataHeading = (
+  my @voterDataHeading = (
     "state-voter-id",
     "11/06/18 general",
     "06/12/18 special",
@@ -97,7 +100,8 @@ my @voterDataHeading = (
     "06/03/03 special",
     "11/05/02 general",
     "09/03/02 primary",
-);
+    "Total Votes",
+  );
 
 #
 # main program controller
@@ -135,10 +139,11 @@ sub main {
 
     chomp $csvHeadings;
     chop $csvHeadings;
-    
+
     # remove imbedded commas and imbedded spaces from headers
     $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
     $csvHeadings =~ s/(?<! ) (?! )//g;
+    $csvHeadings =~ s/"//g;
 
     # headings in an array to modify
     # @csvHeadings will be used to create the files
@@ -173,10 +178,11 @@ sub main {
   NEW:
     while ( $line1Read = <$voterHistoryFileh> ) {
         $linesRead++;
-        if ( $linesIncRead == 100 ) {
+        if ( $linesIncRead == 10000 ) {
             print STDOUT "$linesRead lines processed \n";
 
             # printLine("$linesRead lines processed \n");
+            print "$linesRead lines processed \n";
             $linesIncRead = 0;
         }
 
@@ -184,6 +190,7 @@ sub main {
         chomp $line1Read;
         chop $line1Read;
         $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+        $line1Read =~ s/"//g;
 
         # then create the values array to complete preprocessing
         @values1 = split( /\s*,\s*/, $line1Read, -1 );
@@ -212,8 +219,8 @@ sub main {
             #
             # place vote in correct bucket (14 days <= electiondate)
             #
-            my $votedate = substr( $csvRowHash{"ElectionDate"}, 0, 8 );
-            my $vdate    = Time::Piece->strptime( $votedate, "%m/%d/%y" );
+            my $votedate = substr( $csvRowHash{"ElectionDate"}, 0, 10 );
+            my $vdate    = Time::Piece->strptime( $votedate, "%m/%d/%Y" );
 
             # find the correct election for this vote
             # dates must be in Time::Piece format
@@ -229,12 +236,15 @@ sub main {
                 if ( $vdate >= $twoweeksearly && $vdate <= $electiondate ) {
                     $voterDataLine{ $voterDataHeading[$vote] } =
                       $csvRowHash{"VoteCode"};
+                    $totalVotes++;
                     last;
                 }
             }
             next;
         }
         else {
+            $voterDataLine{"Total Votes"} = $totalVotes;
+
             # prepare to write out the voter data
             @voterData = ();
             foreach (@voterDataHeading) {
@@ -243,6 +253,15 @@ sub main {
             print $voterDataFileh join( ',', @voterData ), "\n";
             %voterDataLine = ();
             $linesWritten++;
+            $linesIncWritten++;
+            $totalVotes = 0;
+            $linesRead++;
+            if ( $linesIncWritten == 100 ) {
+                print STDOUT "$linesWritten lines processed \n";
+                print "$linesWritten lines processed \n";
+                $linesIncRead = 0;
+            }
+
         }
         $stateVoterID = $currentVoter;
         goto finish;

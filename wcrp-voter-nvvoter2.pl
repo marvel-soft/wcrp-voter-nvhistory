@@ -25,7 +25,7 @@ no warnings "uninitialized";
 		a) no restrictions
 		b)
 	Input: any csv file with headers
-	       
+
 	Output: one or more smaller csv file
 	parms:
 	'infile=s'     => \$inputFile,
@@ -33,7 +33,7 @@ no warnings "uninitialized";
 	'maxlines=s'   => \$maxLines,
 	'maxfiles=n'   => \$maxFiles,
 	'help!'        => \$helpReq,
-	
+
 =cut
 
 my $records;
@@ -41,7 +41,8 @@ my $records;
 my $voterValuesFile = "votervalues.csv";
 my $voterValuesFileh;
 my @voterValuesArray;
-my %voterValuesArray;
+
+#my %voterValuesArray;
 
 my $voterDataFile = "voterdata.csv";
 my $voterDataFileh;
@@ -76,15 +77,17 @@ my $voterStatHeading = "";
 my @voterStatHeading = (
     "state-voter-id",     #0
     "Voter Status",       #1
-    "Age",                #3
-    "Registered Days",    #4
-    "Generals",           #5
-    "Primaries",          #6
-    "Polls",              #7
-    "Absentee",           #8
-    "Mail",               #9
-    "Provisional",        #10
-    "Rank",               #11
+    "Age",                #2
+    "Registered Days",    #3
+    "Generals",           #4
+    "Primaries",          #5
+    "Polls",              #6
+    "Absentee",           #7
+    "Mail",               #8
+    "Provisional",        #9
+    "Rank",               #10
+    "Score",              #11
+    "Total Votes",        #12
 );
 my @voterStat;
 
@@ -108,7 +111,9 @@ my $totalMAIL          = 0;
 my $totalSTR           = 0;
 my $totalMOD           = 0;
 my $totalWEAK          = 0;
-
+my $votesTotal         = 0;
+my $voterScore         = 0;
+my $voterScore2        = 0;
 #
 # main program controller
 #
@@ -222,9 +227,9 @@ sub main {
             @date = split( /\s*\/\s*/, $birthdate, -1 );
             $mm   = sprintf( "%02d", $date[0] );
             $dd   = sprintf( "%02d", $date[1] );
-            $yy   = sprintf( "%02d", $date[2] );
-            if    ( $yy <= 20 ) { $yy = 2000 + $yy }
-            elsif ( $yy > 20 )  { $yy = 1900 + $yy }
+            $yy   = sprintf( "%02d", substr($date[2],2,2) );
+            if ( $yy <= 20 ) { $yy = 2000 + $yy }
+            elsif ( $yy > 20 ) { $yy = 1900 + $yy }
             $adjustedDate = "$mm/$dd/$yy";
             $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
             $now          = localtime;
@@ -237,7 +242,7 @@ sub main {
             @date = split( /\s*\/\s*/, $regdate, -1 );
             $mm   = sprintf( "%02d", $date[0] );
             $dd   = sprintf( "%02d", $date[1] );
-            $yy   = sprintf( "%02d", $date[2] );
+            $yy   = sprintf( "%02d", substr($date[2],2,2) );
             if    ( $yy <= 20 ) { $yy = 2000 + $yy }
             elsif ( $yy > 20 )  { $yy = 1900 + $yy }
             $adjustedDate = "$mm/$dd/$yy";
@@ -252,7 +257,11 @@ sub main {
 
         $voterStatLine{"state-voter-id"} = $csvRowHash{"state-voter-id"};
         $voterid = $csvRowHash{"state-voter-id"};
+
+        # evaluate voter strength
         evaluateVoter();
+
+        #build remainder of line
         $voterStatLine{"Primaries"}   = $primaryCount;
         $voterStatLine{"Generals"}    = $generalCount;
         $voterStatLine{"Polls"}       = $pollCount;
@@ -260,6 +269,8 @@ sub main {
         $voterStatLine{"Mail"}        = $mailCount;
         $voterStatLine{"Provisional"} = $provisionalCount;
         $voterStatLine{"Rank"}        = $voterRank;
+        $voterStatLine{"Score"}       = $voterScore2;
+        $voterStatLine{"Total Votes"} = $votesTotal;
 
         # write out voter stats
         @voterStat = ();
@@ -335,6 +346,7 @@ sub evaluateVoter {
     $absenteeCount    = 0;
     $mailCount        = 0;
     $provisionalCount = 0;
+    $votesTotal       = 0;
     $voterRank        = '';
 
     #set pointer to first vote in list
@@ -343,13 +355,13 @@ sub evaluateVoter {
     my $daysRegistered = $voterStatLine{"Registered Days"};
     for ( my $cycle = 1 ; $cycle < 20 ; $cycle++, $vote += 1 ) {
 
-        #skip mock election
+# each election type is specified with its date - we only process primary/general
+# skip mock election
         if ( ( $csvHeadings[$vote] ) =~ m/mock/ ) {
             next;
         }
 
-# each election type is specified with its date - we only process primary/general
-#skip special election
+        # skip special election
         if ( ( $csvHeadings[$vote] ) =~ m/special/ ) {
             next;
         }
@@ -387,26 +399,29 @@ sub evaluateVoter {
                 $generalPollCount += 1;
                 $generalCount     += 1;
                 $pollCount        += 1;
+                $votesTotal = $vote;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
                 $generalEarlyCount += 1;
                 $generalCount      += 1;
                 $absenteeCount     += 1;
+                $votesTotal = $vote;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
                 $generalEarlyCount += 1;
                 $generalCount      += 1;
                 $mailCount         += 1;
+                $votesTotal = $vote;
                 next;
             }
-        }
-        if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
-            $primaryEarlyCount += 1;
-            $primaryCount      += 1;
-            $provisionalCount  += 1;
-            next;
+            if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
+                $generalCount     += 1;
+                $provisionalCount += 1;
+                $votesTotal = $vote;
+                next;
+            }
         }
 
         # record a primary vote
@@ -425,24 +440,27 @@ sub evaluateVoter {
                 $primaryPollCount += 1;
                 $primaryCount     += 1;
                 $pollCount        += 1;
+                $votesTotal = $vote;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
                 $primaryEarlyCount += 1;
                 $primaryCount      += 1;
                 $absenteeCount     += 1;
+                $votesTotal = $vote;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
                 $primaryEarlyCount += 1;
                 $primaryCount      += 1;
                 $mailCount         += 1;
+                $votesTotal = $vote;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
-                $primaryEarlyCount += 1;
-                $primaryCount      += 1;
-                $provisionalCount  += 1;
+                $primaryCount     += 1;
+                $provisionalCount += 1;
+                $votesTotal = $vote;
                 next;
             }
         }
@@ -467,73 +485,21 @@ sub evaluateVoter {
   # if registered > 8 years   gen >= 3 && gen <= 9  and pri >= 0      = MODERATE
     ## if registered > 8 years   gen >= 6 && gen <= 12 and pri >= 0      = STRONG
 
-    if ( $daysTotlRegistered < ( 365 * 2 + 1 ) ) {
-        if ( $generalCount <= 1 or $notElegible >= 1 ) {
-            $voterRank = "WEAK";
-        }
-        if ( $generalCount >= 1 ) {
-            $voterRank = "MODERATE";
-        }
-        if ( $generalCount >= 2 ) {
-            $voterRank = "STRONG";
-        }
+    if ( $votesTotal > 0 ) {
+        $voterScore  = ( $generalCount + $primaryCount ) / ($votesTotal) * 10;
+        $voterScore2 = round($voterScore);
     }
 
-    # if registered > 2 years and < 4 years>
-    if (    $daysTotlRegistered > ( 365 * 2 )
-        and $daysTotlRegistered < ( 365 * 4 ) )
-    {
-        if ( $generalCount == 0 or $generalCount == 1 or $notElegible >= 1 ) {
-            $voterRank = "WEAK";
-        }
-        if ( $generalCount >= 2 ) {
-            $voterRank = "MODERATE";
-        }
-        if ( $generalCount >= 3 and $primaryCount >= 1 ) {
-            $voterRank = "STRONG";
-        }
+    if ( $voterScore2 > 5 ) {
+        $voterRank = "STRONG";
+    }
+    if ( $voterScore2 >= 3 && $voterScore2 <= 5 ) {
+        $voterRank = "MODERATE";
+    }
+    if ( $voterScore2 < 3 ) {
+        $voterRank = "WEAK";
     }
 
-    # if registered > 4 < 8 years   gen gt 4 && pri gt 3   = STRONG
-    if (    $daysTotlRegistered > ( 365 * 4 )
-        and $daysTotlRegistered < ( 365 * 8 ) )
-    {
-        if ( $generalCount >= 0 or $notElegible >= 1 ) {
-            $voterRank = "WEAK";
-        }
-        if ( $generalCount >= 1 and $generalCount <= 2 and $primaryCount = 0 ) {
-            $voterRank = "WEAK";
-        }
-        if ( $generalCount >= 2 and $generalCount <= 5 and $primaryCount >= 0 )
-        {
-            $voterRank = "MODERATE";
-        }
-        if ( $generalCount >= 3 and $generalCount <= 12 and $primaryCount >= 0 )
-        {
-            $voterRank = "STRONG";
-        }
-    }
-
-    # if registered > 8 years       gen gt 6 && pri gt 4   = STRONG
-    if ( $daysTotlRegistered > ( 365 * 8 ) ) {
-        if ( $generalCount >= 0 and $generalCount <= 2 or $notElegible >= 1 ) {
-            $voterRank = "WEAK";
-        }
-        if ( $generalCount >= 0 and $generalCount <= 4 and $primaryCount >= 0 )
-        {
-            $voterRank = "WEAK";
-        }
-        if (    $generalCount >= 3
-            and $generalCount <= 9
-            and $primaryCount >= 0 )
-        {
-            $voterRank = "MODERATE";
-        }
-        if ( $generalCount >= 6 and $generalCount <= 12 and $primaryCount >= 0 )
-        {
-            $voterRank = "STRONG";
-        }
-    }
     #
     # Set voter strength rating
     #
@@ -541,26 +507,11 @@ sub evaluateVoter {
     elsif ( $voterRank eq 'MODERATE' ) { $totalMOD++; }
     elsif ( $voterRank eq 'WEAK' )     { $totalWEAK++; }
 
-    if ( $primaryCount != 0 ) {
-        if ( $leansDemCount != 0 ) {
-            if ( $leansDemCount / $primaryCount > .5 ) {
-                $leanDem = 1;
-            }
-        }
-        if ( $leansRepCount != 0 ) {
-            if ( $leansRepCount / $primaryCount > .5 ) {
-                $leanRep = 1;
-            }
-        }
-    }
-
     $totalGENERALS    = $totalGENERALS + $generalCount;
     $totalPRIMARIES   = $totalPRIMARIES + $primaryCount;
     $totalPOLLS       = $totalPOLLS + $pollCount;
     $totalABSENTEE    = $totalABSENTEE + $absenteeCount;
     $totalPROVISIONAL = $totalPROVISIONAL + $provisionalCount;
-    $totalLEANREP     = $totalLEANREP + $leanRep;
-    $totalLEANDEM     = $totalLEANDEM + $leanDem;
 }
 
 # $index = binary_search( \@array, $word )
@@ -603,6 +554,7 @@ sub binary_ch_search {
 # create the voter stats binary search array
 #
 sub voterValuesLoad() {
+    my $valuescounter = 0, $incCounter = 0;
     $voterValuesHeadings = "";
     open( $voterValuesFileh, $voterValuesFile )
       or die "Unable to open INPUT: $voterValuesFile Reason: $!";
@@ -613,11 +565,23 @@ sub voterValuesLoad() {
     @voterValuesHeadings = split( /\s*,\s*/, $voterValuesHeadings );
 
     # Build the UID->survey hash
+    print "Building voterValuesArray \n";
     while ( $line1Read = <$voterValuesFileh> ) {
         chomp $line1Read;
+
+        #   print "values $line1Read  \n";
         my @values1 = split( /\s*,\s*/, $line1Read, -1 );
         push @voterValuesArray, \@values1;
+        $valuescounter++;
+        $incCounter++;
+        if ( $incCounter == 1000 ) {
+
+            #           print "so far $valuescounter done";
+            $incCounter = 0;
+        }
+
     }
+    print "Completed voterValuesArray for $valuescounter \n";
     close $voterValuesFileh;
     return @voterValuesArray;
 }

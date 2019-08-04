@@ -5,7 +5,7 @@
 #
 #
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-#use strict;
+use strict;
 use warnings;
 $| = 1;
 use File::Basename;
@@ -30,51 +30,50 @@ no warnings "uninitialized";
 
 my $records;
 
-#my $inputFile 				= "../test-in/2019.nv.VoterList.ElgbVtr-250-low.csv";
-#my $inputFile 				= "../test-in/nv-washoe-voter-20190219.csv";
-#my $inputFile 				= "../wcrp-voter-splitter/VoterList.ElgbVtr.20190327-1.csv";
+my $inputFile = "VoterList.ElgbVtr.073019-voterid.csv";
 
-my $inputFile = "..VoterList.washoe.ElgbVtr-20190218.csv";
-
-#my $inputFile 				= "base-nvtables-merge-test.csv";    #
-#my $voterStatsFile    = "sorted-extracts-test.csv";
-
-my $voterEmailFile = "email-sort.csv";
-my $voterEmailFileh;
-
-my $voterStatsFile = "voterstat.csv";
-my $voterStatsFileh;
-
-my $adPoliticalFile = "../prod-in1/adall-precincts-jul.csv";
-
-my $fileName = "";
 my $baseFile = "base.csv";
 my $baseFileh;
-my %baseLine     = ();
+my %baseLine = ();
+my @baseLine;
+my $baseLine;
+my @baseProfile;
+
+#my $voterEmailFile = "email-sort.csv";
+my $voterEmailFile = "";
+my $voterEmailFileh;
+my @voterEmailArray;
+my $voterEmailArray;
+my @voterEmailHeadings;
+my $voterEmailHeadings;
+
 my $emailLogFile = "email-adds-log.csv";
 my $emailLogFileh;
 my %emailLine = ();
-my $printFile = "print-.txt";
-my $printFileh;
-my $votingFile = "voting.csv";
-my $votingFileh;
-my %votingLine    = ();
-my %politicalLine = ();
 
-my @adPoliticalHash = ();
-my %adPoliticalHash;
-my $adPoliticalHeadings = "";
-my @voterEmailArray;
-my $voterEmailArray;
+#my $voterStatsFile = "voterdata.csv";
+
+my $voterStatsFile = "voterstat.csv";
+my $voterStatsFileh;
+my %voterStatsArray;
 my @voterStatsArray;
 my $voterStatsArray;
 my $voterStatsHeadings = "";
 my @voterStatsHeadings;
+
+my $printFile = "print-.txt";
+my $printFileh;
+
+my %politicalLine   = ();
+my @adPoliticalHash = ();
+my %adPoliticalHash;
+my $adPoliticalHeadings = "";
+
 my $stats;
 my $emails;
 
 my $helpReq     = 0;
-my $maxLines    = "25000";
+my $maxLines    = "250";
 my $voteCycle   = "";
 my $fileCount   = 1;
 my $csvHeadings = "";
@@ -166,19 +165,17 @@ my $camiddleName;
 my $caemail;
 my $capoints;
 
-my @baseLine;
-my $baseLine;
-my @baseProfile;
 my $baseHeading = "";
 my @baseHeading = (
-    "Voter ID",    "State ID",  "Status",        "Precinct",
+    "County ID",   "State ID",  "Status",        "Precinct",
     "Asm dist",    "Sen dist",  "First",         "Last",
     "Middle",      "Suffix",    "Phone",         "email",
     "Birth Date",  "Reg Date",  "Party",         "Street No",
     "Street Name", "Address 1", "Address 2",     "City",
     "State",       "Zip",       "Reg Date Orig", "Days Totl Reg",
-    "Age",         "Gender",    "Military",      "Generals",
-    "Primaries",   "Leans",     "Strength",
+    "Age",         "Generals",  "Primaries",     "Polls",
+    "Absentee",    "Mail",      "Provisional",   "Rank",
+    "Score",       "Total Votes",
 );
 my @emailProfile;
 my $emailHeading = "";
@@ -225,6 +222,10 @@ sub main {
     # pick out the heading line and hold it and remove end character
     $csvHeadings = <INPUT>;
     chomp $csvHeadings;
+
+    # remove imbedded commas and imbedded spaces from headers
+    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
+    $csvHeadings =~ s/(?<! ) (?! )//g;
 
     # headings in an array to modify
     # @csvHeadings will be used to create the files
@@ -283,7 +284,6 @@ sub main {
         # replace commas from in between double quotes with a space
         $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
         $line1Read =~ s/\"/ /g;
-        chop $line1Read;
 
         # then create the values array
         @values1 = split( /\s*,\s*/, $line1Read, -1 );
@@ -294,93 +294,76 @@ sub main {
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
         # Assemble database load  for base segment
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
-        %baseLine             = ();
-        $baseLine{"State ID"} = $csvRowHash{"nv_id"};
-        $baseLine{"Voter ID"} = $csvRowHash{"cnty_id"};
-        my $voterid = $csvRowHash{"cnty_id"};
-        $baseLine{"Status"}   = $csvRowHash{"status"};
-        $baseLine{'Asm dist'} = $csvRowHash{"am_dist"};
-        $baseLine{'Sen dist'} = $csvRowHash{"sen_dist"};
-        $baseLine{"Precinct"} = substr $csvRowHash{"precinct"}, 0, 6;
-        my $UCword = $csvRowHash{"first"};
+        %baseLine              = ();
+        $baseLine{"State ID"}  = $csvRowHash{"VoterID"};
+        $baseLine{"County ID"} = $csvRowHash{"CountyVoterID"};
+        my $voterid = $csvRowHash{"VoterID"};
+        $baseLine{"Status"}   = $csvRowHash{"CountyStatus"};
+        $baseLine{"Precinct"} = $csvRowHash{"RegisteredPrecinct"};
+        $baseLine{'Asm dist'} = $csvRowHash{"AssemblyDistrict"};
+        $baseLine{'Sen dist'} = $csvRowHash{"SenateDistrict"};
+
+        # $baseLine{"Precinct"} = substr $csvRowHash{"precinct"}, 0, 6;
+        my $UCword = $csvRowHash{"FirstName"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"First"} = $UCword;
         my $ccfirstName = $UCword;
 
-        $UCword = $csvRowHash{"middle"};
+        $UCword = $csvRowHash{"MiddleName"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"Middle"} = $UCword;
-        $UCword = $csvRowHash{"last"};
+        $UCword = $csvRowHash{"LastName"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"Last"} = $UCword;
         my $cclastName = $UCword;
         $UCword =~ s/(\w+)/\u\L$1/g;
-        $baseLine{"Suffix"} = $csvRowHash{"name_suffix"};
-        $baseLine{"Party"}  = $csvRowHash{"party"};
-        $baseLine{"Phone"}  = $csvRowHash{"phone"};
-        $UCword             = $csvRowHash{"address"};
+
+        # $baseLine{"Suffix"} = $csvRowHash{"name_suffix"};
+        $baseLine{"Birth Date"} = $csvRowHash{"BirthDate"};
+        $baseLine{"Reg Date"}   = $csvRowHash{"RegistrationDate"};
+        $baseLine{"Party"}      = $csvRowHash{"Party"};
+        $baseLine{"Phone"}      = $csvRowHash{"Phone"};
+        $UCword                 = $csvRowHash{"Address1"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"Address 1"} = $UCword;
         my @streetno = split( / /, $UCword, 2 );
         $baseLine{"Street No"}   = $streetno[0];
         $baseLine{"Street Name"} = $streetno[1];
-        $UCword                  = $csvRowHash{"city"};
+        $UCword                  = $csvRowHash{"City"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"City"}  = $UCword;
-        $baseLine{"State"} = $csvRowHash{"state"};
-        $baseLine{"Zip"}   = $csvRowHash{"zip"};
+        $baseLine{"State"} = $csvRowHash{"State"};
+        $baseLine{"Zip"}   = $csvRowHash{"Zip"};
         $baseLine{"email"} = "";
-        my $date = localtime->mdy('-');
-        @date = split( /\s*\/\s*/, $csvRowHash{"birth_date"}, -1 );
-        $mm   = sprintf( "%02d", $date[0] );
-        $dd   = sprintf( "%02d", $date[1] );
-        $yy   = sprintf( "%02d", $date[2] );
-        $baseLine{"Birth Date"} = "$mm/$dd/$yy";
-        @date = split( /\s*\/\s*/, $csvRowHash{"reg_date"}, -1 );
-        $mm   = sprintf( "%02d", $date[0] );
-        $dd   = sprintf( "%02d", $date[1] );
-        $yy   = sprintf( "%02d", $date[2] );
-        $baseLine{"Reg Date"} = "$mm/$dd/$yy";
 
-        my $adjustedDate = "$mm/$dd/$yy";
-        my $before;
-        if ( length($yy) == 4 ) {
-            ;
-            $before = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
-        }
-        if ( length($yy) == 2 ) {
-            $before = Time::Piece->strptime( $adjustedDate, "%m/%d/%y" );
-        }
-        my $now            = localtime;
-        my $daysRegistered = $now - $before;
-        $daysRegistered = ( $daysRegistered / (86400) );
-        $daysRegistered = round($daysRegistered);
-
-#	printLine ("line= $linesRead voterid= $voterid adjusted= $adjustedDate registered= $daysRegistered\n");
-        $baseLine{"Days Reg"} = int($daysRegistered);
         #
         #  locate county data
         #
         $stats = binary_search( \@voterStatsArray, $voterid );
         if ( $stats != -1 ) {
-            my $mil = $voterStatsArray[$stats][16];
-            chop $mil;
-            $baseLine{"Military"}      = $mil;
-            $baseLine{"Reg Date Orig"} = $voterStatsArray[$stats][4];
-            $baseLine{"Days Totl Reg"} = $voterStatsArray[$stats][5];
-            $baseLine{"Age"}           = $voterStatsArray[$stats][6];
-            $baseLine{"Generals"}      = $voterStatsArray[$stats][7];
-            $baseLine{"Primaries"}     = $voterStatsArray[$stats][8];
-            $baseLine{"Leans"}         = $voterStatsArray[$stats][13];
-            $baseLine{"Strength"}      = $voterStatsArray[$stats][14];
-            $baseLine{"Gender"}        = $voterStatsArray[$stats][15];
-            $statsAdded                = $statsAdded + 1;
+
+            #$baseLine{"Reg Date Orig"} = $voterStatsArray[$stats][4];
+            $baseLine{"Days Totl Reg"} = $voterStatsArray[$stats][3];
+            $baseLine{"Age"}           = $voterStatsArray[$stats][2];
+            $baseLine{"Generals"}      = $voterStatsArray[$stats][4];
+            $baseLine{"Primaries"}     = $voterStatsArray[$stats][5];
+            $baseLine{"Polls"}         = $voterStatsArray[$stats][6];
+            $baseLine{"Absentee"}      = $voterStatsArray[$stats][7];
+            $baseLine{"Mail"}          = $voterStatsArray[$stats][8];
+            $baseLine{"Provisional"}   = $voterStatsArray[$stats][9];
+            $baseLine{"Rank"}        = $voterStatsArray[$stats][10];
+            $baseLine{"Score"}       = $voterStatsArray[$stats][11];
+            $baseLine{"Total Votes"} = $voterStatsArray[$stats][12];
+
+            #$baseLine{"Gender"}        = $voterStatsArray[$stats][15];
+            $statsAdded = $statsAdded + 1;
         }
 #
 #  locate email address
 #  "Last", "First", "Middle","Phone","email","Address", "City","Contact Points",
 #     0       1         2                4      5          6          7
 
+        #if ( $voterEmailFile ne "" ) {
         $emails = binary_ch_search( \@voterEmailArray, $cclastName );
         if ( $emails != -1 ) {
             if (   $voterEmailArray[$emails][0] eq $cclastName
@@ -438,7 +421,7 @@ EXIT:
 
 printLine("<===> Completed transformation of: $inputFile \n");
 printLine("<===> BASE      SEGMENTS available in file: $baseFile \n");
-printLine("<===> VOTING    SEGMENTS available in file: $votingFile \n");
+printLine("<===> STATS     SEGMENTS available in file: $voterStatsFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Emails added: $emailAdded \n");
 printLine("<===> Total Stats  added: $statsAdded \n");
@@ -446,7 +429,6 @@ printLine("<===> Total Records written: $linesWritten \n");
 
 close(INPUT);
 close($baseFileh);
-close($votingFileh);
 close($printFileh);
 close($emailLogFileh);
 exit;
@@ -546,11 +528,7 @@ sub countParty {
     elsif ( $party eq 'UWS' )   { $totalUWS++; }
 }
 #
-# calculate percentage
-#sub percentage {
-#	my $val = $_;
-#	return ( sprintf( "%.2f", ( $- * 100 ) ) . "%" . $/ );
-#}
+
 #
 # create the voter stats binary search array
 #
