@@ -1,6 +1,7 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # wcrp-voter-nvhistory
-#  Convert the NVSOS voter data to voterStat lines
+#  -- nvvoter1
+#  Convert the NVSOS voter data to voter Statistic lines
 #
 #
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -14,32 +15,21 @@ use Getopt::Long qw(GetOptions);
 use Time::Piece;
 use Time::Seconds;
 use Math::Round;
+use Text::CSV qw( csv );
 
 no warnings "uninitialized";
 
 =head1 Function
 =over
 =head2 Overview
-	This program will create voter extracts
-		a) no restrictions
-		b)
-	Input: any csv file with headers
-	       
-	Output: one or more smaller csv file
-	parms:
-	'infile=s'     => \$voterHistoryFileFile,
-	'outfile=s'    => \$voterDataFile,
-	'maxlines=s'   => \$maxLines,
-	'maxfiles=n'   => \$maxFiles,
-	'help!'        => \$helpReq,
-	
+
 =cut
 
 my $records;
 
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
-my $voterHistoryFile = "VoterList.VtHst.073019.csv";
+my $voterHistoryFile = "VoterList.VtHst.car.073019.csv";
 my $voterHistoryFileh;
 my @voterHistoryLine = ();
 my %voterHistoryLine;
@@ -65,7 +55,7 @@ my $printData;
 my $linesWritten = 0;
 my $maxFiles;
 my $maxLines;
-my @values1;
+my $csvRowHash;
 my @csvRowHash;
 my %csvRowHash   = ();
 my $stateVoterID = 0;
@@ -74,11 +64,12 @@ my $adjustedDate;
 my $before;
 my $vote;
 my $cycle;
-my $totalVotes = 0;
-my $linesIncRead = 0;
+my $totalVotes      = 0;
+my $linesIncRead    = 0;
 my $linesIncWritten = 0;
+my $currentVoter;
 
-  my @voterDataHeading = (
+my @voterDataHeading = (
     "state-voter-id",
     "11/06/18 general",
     "06/12/18 special",
@@ -101,14 +92,14 @@ my $linesIncWritten = 0;
     "11/05/02 general",
     "09/03/02 primary",
     "Total Votes",
-  );
+);
 
 #
 # main program controller
 #
 sub main {
 
-    #Open file for messages and errors
+    # Open file for messages and errors
     open( $printFileh, ">$printFile" )
       or die "Unable to open PRINT: $printFile Reason: $!";
 
@@ -134,20 +125,22 @@ sub main {
         die;
     }
 
-    # pick out the heading line and hold it and remove end character
-    $csvHeadings = <$voterHistoryFileh>;
-
-    chomp $csvHeadings;
-    chop $csvHeadings;
-
-    # remove imbedded commas and imbedded spaces from headers
-    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-    $csvHeadings =~ s/(?<! ) (?! )//g;
-    $csvHeadings =~ s/"//g;
-
-    # headings in an array to modify
-    # @csvHeadings will be used to create the files
-    @csvHeadings = split( /\s*,\s*/, $csvHeadings );
+    # prepare to use text::csv module
+    # build the constructor
+    my $csv = Text::CSV->new(
+        {
+            binary             => 1,  # Allow special character. Always set this
+            auto_diag          => 1,  # Report irregularities immediately
+            allow_whitespace   => 0,
+            allow_loose_quotes => 1,
+            quote_space        => 0,
+        }
+    );
+    @csvHeadings    = $csv->header($voterHistoryFileh);
+    # on input these two column headers contained a space - replace headers
+    $csvHeadings[2] = "electiondate";
+    $csvHeadings[3] = "votecode";
+    $csv->column_names(@csvHeadings);
 
     # Build heading for new voting record
     $voterDataHeading = join( ",", @voterDataHeading );
@@ -159,7 +152,6 @@ sub main {
     #
     # Initialize process loop and open first output
     $linesRead = 0;
-    my $currentVoter;
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # main process loop.
@@ -176,31 +168,27 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-    while ( $line1Read = <$voterHistoryFileh> ) {
+
+    #my @cols = @{ $csv->getline($voterHistoryFileh) };
+    #$row = {};
+    #$csv->bind_columns( \@{$row}{@cols} );
+
+    while ( $line1Read = $csv->getline_hr($voterHistoryFileh) ) {
         $linesRead++;
         if ( $linesIncRead == 10000 ) {
-            print STDOUT "$linesRead lines processed \n";
-
-            # printLine("$linesRead lines processed \n");
+            printLine("$linesRead lines processed \n");
             print "$linesRead lines processed \n";
             $linesIncRead = 0;
         }
 
-        # replace commas from in between double quotes with a space
-        chomp $line1Read;
-        chop $line1Read;
-        $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-        $line1Read =~ s/"//g;
-
         # then create the values array to complete preprocessing
-        @values1 = split( /\s*,\s*/, $line1Read, -1 );
-        @csvRowHash{@csvHeadings} = @values1;
+        %csvRowHash = %{$line1Read};
 
         # - - - - - - - - - - - - - - - - - - - - - - - - -
         # Create hash of line for transformation
         # - - - - - - - - - - - - - - - - - - - - - - - - -
         # for first record of a series for a voter
-        $currentVoter = $csvRowHash{"VoterID"};
+        $currentVoter = $csvRowHash{"voterid"};
         if ( $stateVoterID == 0 ) {
             $stateVoterID  = $currentVoter;
             %voterDataLine = ();
@@ -213,13 +201,13 @@ sub main {
 
         # for all records build a line for each voter with all their
         # votes by election
-      finish:
+      next_voter:
         if ( $currentVoter eq $stateVoterID ) {
-            $voterDataLine{"state-voter-id"} = $csvRowHash{"VoterID"};
+            $voterDataLine{"state-voter-id"} = $csvRowHash{"voterid"};
             #
             # place vote in correct bucket (14 days <= electiondate)
             #
-            my $votedate = substr( $csvRowHash{"ElectionDate"}, 0, 10 );
+            my $votedate = substr( $csvRowHash{"electiondate"}, 0, 10 );
             my $vdate    = Time::Piece->strptime( $votedate, "%m/%d/%Y" );
 
             # find the correct election for this vote
@@ -235,7 +223,7 @@ sub main {
                 # test to find if the votedate fits a slot, add the vote
                 if ( $vdate >= $twoweeksearly && $vdate <= $electiondate ) {
                     $voterDataLine{ $voterDataHeading[$vote] } =
-                      $csvRowHash{"VoteCode"};
+                      $csvRowHash{votecode};
                     $totalVotes++;
                     last;
                 }
@@ -256,15 +244,13 @@ sub main {
             $linesIncWritten++;
             $totalVotes = 0;
             $linesRead++;
-            if ( $linesIncWritten == 100 ) {
-                print STDOUT "$linesWritten lines processed \n";
-                print "$linesWritten lines processed \n";
-                $linesIncRead = 0;
+            if ( $linesIncWritten == 1000 ) {
+                print "$linesWritten lines written \n";
+                $linesIncWritten = 0;
             }
-
+            $stateVoterID = $currentVoter;
+            goto next_voter;
         }
-        $stateVoterID = $currentVoter;
-        goto finish;
 
         #
         # For now this is the in-elegant way I detect completion
