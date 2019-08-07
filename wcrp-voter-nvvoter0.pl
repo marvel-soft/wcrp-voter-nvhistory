@@ -1,5 +1,6 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # wcrp-voter-nvhistory
+#  -- nvvoter0
 #  Create nv voter extracts with key values used to create
 #  voter stats
 #
@@ -15,6 +16,7 @@ use Getopt::Long qw(GetOptions);
 use Time::Piece;
 use Time::Seconds;
 use Math::Round;
+use Text::CSV qw( csv );
 
 no warnings "uninitialized";
 
@@ -28,7 +30,7 @@ no warnings "uninitialized";
 	       
 	Output: one or more smaller csv file
 	parms:
-	'infile=s'     => \$inputFile,
+	'infile=s'     => \$voterFile,
 	'outfile=s'    => \$voterValuesFile,
 	'maxlines=s'   => \$maxLines,
 	'maxfiles=n'   => \$maxFiles,
@@ -38,11 +40,10 @@ no warnings "uninitialized";
 
 my $records;
 
-#my $inputFile = "nvsos-voter-history-test-noheading.csv";
-
-#my $inputFile = "VoterList.Elgbvtr.100.csv";
-
-my $inputFile = "VoterList.ElgbVtr.073019.csv";
+my $voterFile = "VoterList.ElgbVtr.car.073019.csv";
+my $voterFileh;
+my @voterDataLine = ();
+my %voterDataLine;
 
 my $voterValuesFile = "votervalues.csv";
 my $voterValuesFileh;
@@ -89,7 +90,7 @@ sub main {
 
     # Parse any parameters
     GetOptions(
-        'infile=s'   => \$inputFile,
+        'infile=s'   => \$voterFile,
         'outfile=s'  => \$voterValuesFile,
         'maxlines=n' => \$maxLines,
         'maxfiles=n' => \$maxFiles,
@@ -100,25 +101,44 @@ sub main {
         print "Come on, it's really not that hard. \n";
     }
     else {
-        printLine("My inputfile is: $inputFile. \n");
+        printLine("My inputfile is: $voterFile. \n");
     }
-    unless ( open( INPUT, $inputFile ) ) {
-        printLine("Unable to open INPUT: $inputFile Reason: $! \n");
+    unless ( open( $voterFileh, $voterFile ) ) {
+        printLine("Unable to open INPUT: $voterFile Reason: $! \n");
         die;
     }
 
-    # pick out the heading line and hold it and remove end character
-    $csvHeadings = <INPUT>;
-    chomp $csvHeadings;
+    # prepare to use text::csv module
+    # build the constructor
+    my $csv = Text::CSV->new(
+        {
+            binary             => 1,  # Allow special character. Always set this
+            auto_diag          => 1,  # Report irregularities immediately
+            allow_whitespace   => 0,
+            allow_loose_quotes => 1,
+            quote_space        => 0,
+        }
+    );
+    @csvHeadings = $csv->header($voterFileh);
 
-    # remove imbedded commas and imbedded spaces from headers
-    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-    $csvHeadings =~ s/(?<! ) (?! )//g;
-    $csvHeadings =~ s/"//g;
-
-      # headings in an array to modify
-      # @csvHeadings will be used to create the files
-      @csvHeadings = split( /\s*,\s*/, $csvHeadings );
+    # on input these column headers contained a space - replace headers
+    $csvHeadings[2]  = "firstname";
+    $csvHeadings[3]  = "middlename";
+    $csvHeadings[4]  = "lastname";
+    $csvHeadings[6]  = "birthdate";
+    $csvHeadings[7]  = "registrationdate";
+    $csvHeadings[8]  = "address1";
+    $csvHeadings[9]  = "address2";
+    $csvHeadings[15] = "congressionaldistrict";
+    $csvHeadings[16] = "senatedistrict";
+    $csvHeadings[17] = "assemblydistrict";
+    $csvHeadings[18] = "educationdistrict";
+    $csvHeadings[19] = "regentdistrict";
+    $csvHeadings[20] = "registeredprecinct";
+    $csvHeadings[21] = "countystatus";
+    $csvHeadings[22] = "countyvoterid";
+    $csvHeadings[23] = "idrequired";
+    $csv->column_names(@csvHeadings);
 
     # Build heading for new voting record
     $voterValuesHeading = join( ",", @voterValuesHeading );
@@ -147,24 +167,17 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-    while ( $line1Read = <INPUT> ) {
+    while ( $line1Read = $csv->getline_hr($voterFileh) ) {
         $linesRead++;
         $linesIncRead++;
-        if ( $linesIncRead == 100 ) {
+        if ( $linesIncRead == 1000 ) {
             print STDOUT "$linesRead lines processed \n";
             print "$linesRead lines processed \n";
-
             $linesIncRead = 0;
         }
 
-        # replace commas from in between double quotes with a space
-        chomp $line1Read;
-        $line1Read   =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-        $line1Read =~ s/"//g;
-
-          # then create the values array to complete preprocessing
-          @values1 = split( /\s*,\s*/, $line1Read, -1 );
-        @csvRowHash{@csvHeadings} = @values1;
+        # then create the values array to complete preprocessing
+        %csvRowHash = %{$line1Read};
 
         # - - - - - - - - - - - - - - - - - - - - - - - - -
         # Create hash of line for transformation
@@ -173,23 +186,23 @@ sub main {
 
         # votes by election
 
-        $voterValuesLine{"state-voter-id"} = $csvRowHash{"VoterID"};
-        $voterValuesLine{"Party"}          = $csvRowHash{"Party"};
-        $voterValuesLine{"LastName"}       = $csvRowHash{"LastName"};
-        $voterValuesLine{"Precinct"}       = $csvRowHash{"RegisteredPrecinct"};
-        my @date = split( /\s*\/\s*/, $csvRowHash{"BirthDate"}, -1 );
+        $voterValuesLine{"state-voter-id"} = $csvRowHash{"voterid"};
+        $voterValuesLine{"Party"}          = $csvRowHash{"party"};
+        $voterValuesLine{"LastName"}       = $csvRowHash{"lastname"};
+        $voterValuesLine{"Precinct"}       = $csvRowHash{"registeredprecinct"};
+        my @date = split( /\s*\/\s*/, $csvRowHash{"birthdate"}, -1 );
         $mm = sprintf( "%02d", $date[0] );
         $dd = sprintf( "%02d", $date[1] );
         $yy = sprintf( "%02d", $date[2] );
         $voterValuesLine{"Birthdate"} = "$mm/$dd/$yy";
-        @date = split( /\s*\/\s*/, $csvRowHash{"RegistrationDate"}, -1 );
+        @date = split( /\s*\/\s*/, $csvRowHash{"registrationdate"}, -1 );
         $mm   = sprintf( "%02d", $date[0] );
         $dd   = sprintf( "%02d", $date[1] );
         $yy   = sprintf( "%02d", $date[2] );
         $voterValuesLine{"Reg-Date"} = "$mm/$dd/$yy";
-        $voterValuesLine{"Status"}   = $csvRowHash{"CountyStatus"};
+        $voterValuesLine{"Status"}   = $csvRowHash{"countystatus"};
 
-        # prepare to write out the voter data
+        # prepare to write out the voter data, write it
         @voterValues = ();
         foreach (@voterValuesHeading) {
             push( @voterValues, $voterValuesLine{$_} );
@@ -202,7 +215,7 @@ sub main {
 
     #
     # For now this is the in-elegant way I detect completion
-    if ( eof(INPUT) ) {
+    if ( eof($voterFileh) ) {
         goto EXIT;
     }
     next;
@@ -215,10 +228,10 @@ main();
 # Common Exit
 EXIT:
 
-close(INPUT);
+close($voterFileh);
 close($voterValuesFileh);
 
-printLine("<===> Completed processing of: $inputFile \n");
+printLine("<===> Completed processing of: $voterFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
