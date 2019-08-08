@@ -14,6 +14,7 @@ use Data::Dumper;
 use Getopt::Long qw(GetOptions);
 use Time::Piece;
 use Math::Round;
+use constant PROGNAME => "NVVOTER3 - ";
 
 no warnings "uninitialized";
 
@@ -30,7 +31,9 @@ no warnings "uninitialized";
 
 my $records;
 
-my $inputFile = "VoterList.ElgbVtr.073019-voterid.csv";
+my $inputFile = "VoterList.ElgbVtr.45099.073019143713.csv";
+
+#my $inputFile = "test1.elgbl.voter-5.csv";
 
 my $baseFile = "base.csv";
 my $baseFileh;
@@ -53,7 +56,8 @@ my %emailLine = ();
 
 #my $voterStatsFile = "voterdata.csv";
 
-my $voterStatsFile = "voterstat.csv";
+#my $voterStatsFile = "voterstat.csv";
+my $voterStatsFile = "voterstat-s.csv";
 my $voterStatsFileh;
 my %voterStatsArray;
 my @voterStatsArray;
@@ -167,20 +171,20 @@ my $capoints;
 
 my $baseHeading = "";
 my @baseHeading = (
-    "County ID",   "State ID",  "Status",        "Precinct",
-    "Asm dist",    "Sen dist",  "First",         "Last",
-    "Middle",      "Suffix",    "Phone",         "email",
-    "Birth Date",  "Reg Date",  "Party",         "Street No",
-    "Street Name", "Address 1", "Address 2",     "City",
-    "State",       "Zip",       "Reg Date Orig", "Days Totl Reg",
-    "Age",         "Generals",  "Primaries",     "Polls",
-    "Absentee",    "Mail",      "Provisional",   "Rank",
-    "Score",       "Total Votes",
+    "CountyID",   "StateID",  "Status",      "Precinct",
+    "AssmDist",   "Sendist",  "First",       "Last",
+    "Middle",     "Suffix",   "Phone",       "email",
+    "BirthDate",  "RegDate",  "Party",       "StreetNo",
+    "StreetName", "Address1", "Address2",    "City",
+    "State",      "Zip",      "RegDateOrig", "RegisteredDays",
+    "Age",        "Generals", "Primaries",   "Polls",
+    "Absentee",   "Mail",     "Provisional", "Rank",
+    "Score",      "TotalVotes",
 );
 my @emailProfile;
 my $emailHeading = "";
 my @emailHeading =
-  ( "Voter ID", "Precinct", "First", "Last", "Middle", "email", );
+  ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
 
 my @votingLine;
 my $votingLine;
@@ -294,14 +298,14 @@ sub main {
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
         # Assemble database load  for base segment
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
-        %baseLine              = ();
-        $baseLine{"State ID"}  = $csvRowHash{"VoterID"};
-        $baseLine{"County ID"} = $csvRowHash{"CountyVoterID"};
+        %baseLine             = ();
+        $baseLine{"StateID"}  = $csvRowHash{"VoterID"};
         my $voterid = $csvRowHash{"VoterID"};
+        $baseLine{"CountyID"} = $csvRowHash{"CountyVoterID"};
         $baseLine{"Status"}   = $csvRowHash{"CountyStatus"};
         $baseLine{"Precinct"} = $csvRowHash{"RegisteredPrecinct"};
-        $baseLine{'Asm dist'} = $csvRowHash{"AssemblyDistrict"};
-        $baseLine{'Sen dist'} = $csvRowHash{"SenateDistrict"};
+        $baseLine{'AssmDist'} = $csvRowHash{"AssemblyDistrict"};
+        $baseLine{'SenDist'}  = $csvRowHash{"SenateDistrict"};
 
         # $baseLine{"Precinct"} = substr $csvRowHash{"precinct"}, 0, 6;
         my $UCword = $csvRowHash{"FirstName"};
@@ -319,17 +323,17 @@ sub main {
         $UCword =~ s/(\w+)/\u\L$1/g;
 
         # $baseLine{"Suffix"} = $csvRowHash{"name_suffix"};
-        $baseLine{"Birth Date"} = $csvRowHash{"BirthDate"};
-        $baseLine{"Reg Date"}   = $csvRowHash{"RegistrationDate"};
-        $baseLine{"Party"}      = $csvRowHash{"Party"};
-        $baseLine{"Phone"}      = $csvRowHash{"Phone"};
-        $UCword                 = $csvRowHash{"Address1"};
+        $baseLine{"BirthDate"} = $csvRowHash{"BirthDate"};
+        $baseLine{"RegDate"}   = $csvRowHash{"RegistrationDate"};
+        $baseLine{"Party"}     = $csvRowHash{"Party"};
+        $baseLine{"Phone"}     = $csvRowHash{"Phone"};
+        $UCword                = $csvRowHash{"Address1"};
         $UCword =~ s/(\w+)/\u\L$1/g;
-        $baseLine{"Address 1"} = $UCword;
+        $baseLine{"Address1"} = $UCword;
         my @streetno = split( / /, $UCword, 2 );
-        $baseLine{"Street No"}   = $streetno[0];
-        $baseLine{"Street Name"} = $streetno[1];
-        $UCword                  = $csvRowHash{"City"};
+        $baseLine{"StreetNo"}   = $streetno[0];
+        $baseLine{"StreetName"} = $streetno[1];
+        $UCword                 = $csvRowHash{"City"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"City"}  = $UCword;
         $baseLine{"State"} = $csvRowHash{"State"};
@@ -338,22 +342,21 @@ sub main {
 
         #
         #  locate county data
-        #
+        $stats = -1;
         $stats = binary_search( \@voterStatsArray, $voterid );
+        print " $voterid $stats \n";
         if ( $stats != -1 ) {
-
-            #$baseLine{"Reg Date Orig"} = $voterStatsArray[$stats][4];
-            $baseLine{"Days Totl Reg"} = $voterStatsArray[$stats][3];
-            $baseLine{"Age"}           = $voterStatsArray[$stats][2];
-            $baseLine{"Generals"}      = $voterStatsArray[$stats][4];
-            $baseLine{"Primaries"}     = $voterStatsArray[$stats][5];
-            $baseLine{"Polls"}         = $voterStatsArray[$stats][6];
-            $baseLine{"Absentee"}      = $voterStatsArray[$stats][7];
-            $baseLine{"Mail"}          = $voterStatsArray[$stats][8];
-            $baseLine{"Provisional"}   = $voterStatsArray[$stats][9];
-            $baseLine{"Rank"}        = $voterStatsArray[$stats][10];
-            $baseLine{"Score"}       = $voterStatsArray[$stats][11];
-            $baseLine{"Total Votes"} = $voterStatsArray[$stats][12];
+            $baseLine{"RegisteredDays"} = $voterStatsArray[$stats][3];
+            $baseLine{"Age"}            = $voterStatsArray[$stats][2];
+            $baseLine{"Generals"}       = $voterStatsArray[$stats][4];
+            $baseLine{"Primaries"}      = $voterStatsArray[$stats][5];
+            $baseLine{"Polls"}          = $voterStatsArray[$stats][6];
+            $baseLine{"Absentee"}       = $voterStatsArray[$stats][7];
+            $baseLine{"Mail"}           = $voterStatsArray[$stats][8];
+            $baseLine{"Provisional"}    = $voterStatsArray[$stats][9];
+            $baseLine{"Rank"}           = $voterStatsArray[$stats][10];
+            $baseLine{"Score"}          = $voterStatsArray[$stats][11];
+            $baseLine{"TotalVotes"}     = $voterStatsArray[$stats][12];
 
             #$baseLine{"Gender"}        = $voterStatsArray[$stats][15];
             $statsAdded = $statsAdded + 1;
@@ -381,7 +384,7 @@ sub main {
 
                 # build a trace line to show email was updated
                 %emailLine = ();
-                $emailLine{"Voter ID"} = $voterid;
+                $emailLine{"VoterID"} = $voterid;
                 $emailLine{"Precinct"} = substr $csvRowHash{"precinct"}, 0, 6;
                 $emailLine{"Last"}     = $calastName;
                 $emailLine{"First"}    = $cafirstName;
@@ -439,8 +442,8 @@ exit;
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    print $printFileh $datestring . ' ' . $printData;
-    print $datestring . ' ' . $printData;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print( PROGNAME . $datestring . ' ' . $printData );
 }
 
 # $index = binary_search( \@array, $word )
@@ -458,6 +461,7 @@ sub binary_search {
         $low  = $try + 1, next if $array->[$try][0] < $word;    # Raise bottom
         $high = $try - 1, next if $array->[$try][0] > $word;    # Lower top
         return $try;    # We've found the word!
+        print "$try \n";
     }
     $try = -1;
     return;             # The word isn't there.
@@ -533,6 +537,8 @@ sub countParty {
 # create the voter stats binary search array
 #
 sub voterStatsLoad() {
+    print "Started building Voter stats hash \n";
+
     $voterStatsHeadings = "";
     open( $voterStatsFileh, $voterStatsFile )
       or die "Unable to open INPUT: $voterStatsFile Reason: $!";
@@ -549,6 +555,7 @@ sub voterStatsLoad() {
         push @voterStatsArray, \@values1;
     }
     close $voterStatsFileh;
+    print "Completed building Voter stats hash \n";
     return @voterStatsArray;
 }
 

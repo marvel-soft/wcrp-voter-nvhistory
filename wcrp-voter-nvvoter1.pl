@@ -16,6 +16,7 @@ use Time::Piece;
 use Time::Seconds;
 use Math::Round;
 use Text::CSV qw( csv );
+use constant PROGNAME => "NVVOTER1 - ";
 
 no warnings "uninitialized";
 
@@ -29,7 +30,8 @@ my $records;
 
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
-my $voterHistoryFile = "VoterList.VtHst.car.073019.csv";
+my $voterHistoryFile = "VoterList.VtHst.45099.073019143713.csv";
+#my $voterHistoryFile = "test1.vthist.voter-5.csv";
 my $voterHistoryFileh;
 my @voterHistoryLine = ();
 my %voterHistoryLine;
@@ -70,7 +72,7 @@ my $linesIncWritten = 0;
 my $currentVoter;
 
 my @voterDataHeading = (
-    "state-voter-id",
+    "statevoterid",
     "11/06/18 general",
     "06/12/18 special",
     "11/08/16 general",
@@ -91,7 +93,7 @@ my @voterDataHeading = (
     "06/03/03 special",
     "11/05/02 general",
     "09/03/02 primary",
-    "Total Votes",
+    "TotalVotes ",
 );
 
 #
@@ -203,7 +205,7 @@ sub main {
         # votes by election
       next_voter:
         if ( $currentVoter eq $stateVoterID ) {
-            $voterDataLine{"state-voter-id"} = $csvRowHash{"voterid"};
+            $voterDataLine{"statevoterid"} = $csvRowHash{"voterid"};
             #
             # place vote in correct bucket (14 days <= electiondate)
             #
@@ -231,7 +233,7 @@ sub main {
             next;
         }
         else {
-            $voterDataLine{"Total Votes"} = $totalVotes;
+            $voterDataLine{"TotalVotes"} = $totalVotes;
 
             # prepare to write out the voter data
             @voterData = ();
@@ -245,7 +247,7 @@ sub main {
             $totalVotes = 0;
             $linesRead++;
             if ( $linesIncWritten == 1000 ) {
-                print "$linesWritten lines written \n";
+                printLine ("$linesWritten lines written \n");
                 $linesIncWritten = 0;
             }
             $stateVoterID = $currentVoter;
@@ -284,6 +286,6 @@ exit;
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    print $printFileh $datestring . ' ' . $printData;
-    print $datestring . ' ' . $printData;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print (PROGNAME . $datestring . ' ' . $printData);
 }

@@ -1,5 +1,6 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# wcrp-voter-nvvoter2
+# wcrp-voter-nvhistory
+#  --nvvoter2
 #  Convert the voter data rows to voter statistics
 #   - requires the file voterValues as supplemental input
 #
@@ -15,6 +16,8 @@ use Getopt::Long qw(GetOptions);
 use Time::Piece;
 use Time::Seconds;
 use Math::Round;
+use Text::CSV qw( csv );
+use constant PROGNAME => "NVVOTER2 - ";
 
 no warnings "uninitialized";
 
@@ -38,18 +41,22 @@ no warnings "uninitialized";
 
 my $records;
 
-my $voterValuesFile = "votervalues.csv";
+# input 1 from voter0
+my $voterValuesFile = "votervalues-s.csv";
 my $voterValuesFileh;
 my @voterValuesArray;
 
-#my %voterValuesArray;
-
+# inupt 2 from voter1
 my $voterDataFile = "voterdata.csv";
 my $voterDataFileh;
 my @voterData;
 
+# output file to voter3
 my $voterStatFile = "voterstat.csv";
 my $voterStatFileh;
+my %voterStatLine = ();
+my @voterStatLine;
+my @voterStat;
 
 my $printFile = "print-.txt";
 my $printFileh;
@@ -71,49 +78,46 @@ my @date;
 my $voterid;
 my $adjustedDate;
 
-my %voterStatLine = ();
-my @voterStatLine;
 my $voterStatHeading = "";
 my @voterStatHeading = (
-    "state-voter-id",     #0
-    "Voter Status",       #1
-    "Age",                #2
-    "Registered Days",    #3
-    "Generals",           #4
-    "Primaries",          #5
-    "Polls",              #6
-    "Absentee",           #7
-    "Mail",               #8
-    "Provisional",        #9
-    "Rank",               #10
-    "Score",              #11
-    "Total Votes",        #12
+    "statevoterid",      #0
+    "VoterStatus",       #1
+    "Age",               #2
+    "RegisteredDays",    #3
+    "Generals",          #4
+    "Primaries",         #5
+    "Polls",             #6
+    "Absentee",          #7
+    "Mail",              #8
+    "Provisional",       #9
+    "Rank",              #10
+    "Score",             #11
+    "TotalVotes",        #12
 );
-my @voterStat;
 
 my @precinctPolitical;
-my $daysTotlRegistered = 0;
-my $pollCount          = 0;
-my $absenteeCount      = 0;
-my $provisionalCount   = 0;
-my $mailCount          = 0;
-my $activeVOTERS       = 0;
-my $activeREP          = 0;
-my $activeDEM          = 0;
-my $activeOTHR         = 0;
-my $totalVOTERS        = 0;
-my $totalGENERALS      = 0;
-my $totalPRIMARIES     = 0;
-my $totalPOLLS         = 0;
-my $totalABSENTEE      = 0;
-my $totalPROVISIONAL   = 0;
-my $totalMAIL          = 0;
-my $totalSTR           = 0;
-my $totalMOD           = 0;
-my $totalWEAK          = 0;
-my $votesTotal         = 0;
-my $voterScore         = 0;
-my $voterScore2        = 0;
+my $RegisteredDays   = 0;
+my $pollCount        = 0;
+my $absenteeCount    = 0;
+my $provisionalCount = 0;
+my $mailCount        = 0;
+my $activeVOTERS     = 0;
+my $activeREP        = 0;
+my $activeDEM        = 0;
+my $activeOTHR       = 0;
+my $totalVOTERS      = 0;
+my $totalGENERALS    = 0;
+my $totalPRIMARIES   = 0;
+my $totalPOLLS       = 0;
+my $totalABSENTEE    = 0;
+my $totalPROVISIONAL = 0;
+my $totalMAIL        = 0;
+my $totalSTR         = 0;
+my $totalMOD         = 0;
+my $totalWEAK        = 0;
+my $votesTotal       = 0;
+my $voterScore       = 0;
+my $voterScore2      = 0;
 #
 # main program controller
 #
@@ -138,15 +142,16 @@ sub main {
     else {
         printLine("My inputfile is: $voterDataFile. \n");
     }
-    unless ( open( INPUT, $voterDataFile ) ) {
+    unless ( open( $voterDataFileh, $voterDataFile ) ) {
         printLine("Unable to open INPUT: $voterDataFile Reason: $! \n");
         die;
     }
 
     # pick out the heading line and hold it and remove end character
-    $csvHeadings = <INPUT>;
+    $csvHeadings = <$voterDataFileh>;
     chomp $csvHeadings;
-    chop $csvHeadings;
+
+    #chop $csvHeadings;
 
     # remove imbedded commas and imbedded spaces from headers
     $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
@@ -165,7 +170,7 @@ sub main {
     # if voter stats are available load the hash table
     if ( $voterValuesFile ne "" ) {
         printLine("Voter values file: $voterValuesFile\n");
-        voterValuesLoad(@voterValuesArray);
+        &voterValuesLoad(@voterValuesArray);
     }
 
     #
@@ -184,7 +189,7 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-    while ( $line1Read = <INPUT> ) {
+    while ( $line1Read = <$voterDataFileh> ) {
         $linesRead++;
         if ( $linesIncRead == 10000 ) {
             printLine("$linesRead lines processed \n");
@@ -193,7 +198,8 @@ sub main {
 
         # replace commas from in between double quotes with a space
         chomp $line1Read;
-        chop $line1Read;
+
+        #chop $line1Read;
         $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
 
         # then create the values array to complete preprocessing
@@ -211,25 +217,32 @@ sub main {
         #
         #  locate county data
         #
-        $stats = binary_search( \@voterValuesArray, $voterid );
+        $voterid = $csvRowHash{statevoterid};
+        $stats   = -1;
+        $stats   = binary_search( \@voterValuesArray, $voterid );
         if ( $stats != -1 ) {
-            $voterStatLine{"Precinct"}  = $voterValuesArray[$stats][1];
-            $voterStatLine{"LastName"}  = $voterValuesArray[$stats][2];
-            $voterStatLine{"Birthdate"} = $voterValuesArray[$stats][3];
+            $voterStatLine{"Precinct"} = $voterValuesArray[$stats][1];
+            $voterStatLine{"LastName"} = $voterValuesArray[$stats][2];
+
+            #$voterStatLine{"Birthdate"} = $voterValuesArray[$stats][3];
             my $birthdate = $voterValuesArray[$stats][3];
-            $voterStatLine{"Reg-Date"} = $voterValuesArray[$stats][4];
+
+            #$voterStatLine{"Reg-Date"} = $voterValuesArray[$stats][4];
             my $regdate = $voterValuesArray[$stats][4];
-            $voterStatLine{"Party"}        = $voterValuesArray[$stats][5];
-            $voterStatLine{"Voter Status"} = $voterValuesArray[$stats][6];
+            $voterStatLine{"Party"}       = $voterValuesArray[$stats][5];
+            $voterStatLine{"VoterStatus"} = $voterValuesArray[$stats][6];
 
             # determine age
             my ( @date, $yy, $mm, $dd, $now, $age, $regdays );
             @date = split( /\s*\/\s*/, $birthdate, -1 );
-            $mm   = sprintf( "%02d", $date[0] );
-            $dd   = sprintf( "%02d", $date[1] );
-            $yy   = sprintf( "%02d", substr($date[2],2,2) );
-            if ( $yy <= 20 ) { $yy = 2000 + $yy }
-            elsif ( $yy > 20 ) { $yy = 1900 + $yy }
+
+            #print "@date \n";
+            $mm = sprintf( "%02d", $date[0] );
+            $dd = sprintf( "%02d", $date[1] );
+            $yy = sprintf( "%02d", substr( $date[2], 0, 4 ) );
+
+            # if    ( $yy <= 20 ) { $yy = 2000 + $yy }
+            # elsif ( $yy > 20 )  { $yy = 1900 + $yy }
             $adjustedDate = "$mm/$dd/$yy";
             $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
             $now          = localtime;
@@ -239,24 +252,34 @@ sub main {
             $voterStatLine{"Age"} = $age;
 
             # determine registered days
-            @date = split( /\s*\/\s*/, $regdate, -1 );
-            $mm   = sprintf( "%02d", $date[0] );
-            $dd   = sprintf( "%02d", $date[1] );
-            $yy   = sprintf( "%02d", substr($date[2],2,2) );
-            if    ( $yy <= 20 ) { $yy = 2000 + $yy }
-            elsif ( $yy > 20 )  { $yy = 1900 + $yy }
+            if ( substr( $regdate, 4, 1 ) eq '-' ) {
+                @date = split( /\s*\-\s*/, $regdate, -1 );
+                $mm   = $date[1];
+                $dd   = $date[2];
+                $yy   = $date[0];
+            }
+            else {
+                @date = split( /\s*\/\s*/, $regdate, -1 );
+                $mm   = sprintf( "%02d", $date[0] );
+                $dd   = sprintf( "%02d", $date[1] );
+                $yy   = sprintf( "%02d", substr( $date[2], 0, 4 ) );
+            }
+            if ( $yy < 1900 ) {
+                $yy = 2016;
+            }
             $adjustedDate = "$mm/$dd/$yy";
-            $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
-            $now          = localtime;
-            $regdays      = $now - $before;
-            $regdays      = ( $regdays / (86400) );
-            $regdays      = round($regdays);
-            $voterStatLine{"Registered Days"} = $regdays;
+
+            $before  = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
+            $now     = localtime;
+            $regdays = $now - $before;
+            $regdays = ( $regdays / (86400) );
+            $regdays = round($regdays);
+            $voterStatLine{"RegisteredDays"} = $regdays;
             $statsAdded = $statsAdded + 1;
         }
 
-        $voterStatLine{"state-voter-id"} = $csvRowHash{"state-voter-id"};
-        $voterid = $csvRowHash{"state-voter-id"};
+        $voterStatLine{"statevoterid"} = $csvRowHash{"statevoterid"};
+        $voterid = $csvRowHash{"statevoterid"};
 
         # evaluate voter strength
         evaluateVoter();
@@ -270,7 +293,7 @@ sub main {
         $voterStatLine{"Provisional"} = $provisionalCount;
         $voterStatLine{"Rank"}        = $voterRank;
         $voterStatLine{"Score"}       = $voterScore2;
-        $voterStatLine{"Total Votes"} = $votesTotal;
+        $voterStatLine{"TotalVotes"}  = $votesTotal;
 
         # write out voter stats
         @voterStat = ();
@@ -286,7 +309,7 @@ sub main {
     #
     # For now this is the in-elegant way I detect completion
 
-    if ( eof(INPUT) ) {
+    if ( eof($voterDataFileh) ) {
         goto EXIT;
     }
     next;
@@ -299,12 +322,12 @@ main();
 # Common Exit
 EXIT:
 
-close(INPUT);
 close($voterDataFileh);
 close($voterStatFileh);
 close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterDataFile \n");
+printLine("<===> Completed creation of: $voterStatFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
@@ -317,8 +340,8 @@ exit;
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    print $printFileh $datestring . ' ' . $printData;
-    print $datestring . ' ' . $printData;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print( PROGNAME . $datestring . ' ' . $printData );
 }
 
 #  routine: evaluateVoter
@@ -554,6 +577,7 @@ sub binary_ch_search {
 # create the voter stats binary search array
 #
 sub voterValuesLoad() {
+    printLine("Starting to load voter values array \n");
     my $valuescounter = 0, $incCounter = 0;
     $voterValuesHeadings = "";
     open( $voterValuesFileh, $voterValuesFile )
@@ -565,23 +589,20 @@ sub voterValuesLoad() {
     @voterValuesHeadings = split( /\s*,\s*/, $voterValuesHeadings );
 
     # Build the UID->survey hash
-    print "Building voterValuesArray \n";
     while ( $line1Read = <$voterValuesFileh> ) {
         chomp $line1Read;
 
-        #   print "values $line1Read  \n";
+        #   write "values $line1Read  \n";
         my @values1 = split( /\s*,\s*/, $line1Read, -1 );
         push @voterValuesArray, \@values1;
         $valuescounter++;
         $incCounter++;
         if ( $incCounter == 1000 ) {
-
-            #           print "so far $valuescounter done";
             $incCounter = 0;
         }
 
     }
-    print "Completed voterValuesArray for $valuescounter \n";
+    printLine("Completed voterValuesArray for $valuescounter \n");
     close $voterValuesFileh;
     return @voterValuesArray;
 }

@@ -1,7 +1,7 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # wcrp-voter-nvhistory
 #  -- nvvoter0
-#  Create nv voter extracts with key values used to create
+#  Create nv votervalues extracts with key values used to create
 #  voter stats
 #
 #
@@ -17,6 +17,7 @@ use Time::Piece;
 use Time::Seconds;
 use Math::Round;
 use Text::CSV qw( csv );
+use constant PROGNAME => "NVVOTER0 - -";
 
 no warnings "uninitialized";
 
@@ -40,7 +41,8 @@ no warnings "uninitialized";
 
 my $records;
 
-my $voterFile = "VoterList.ElgbVtr.car.073019.csv";
+my $voterFile = "VoterList.ElgbVtr.45099.073019143713.csv";
+#my $voterFile = "test1.elgbl.voter-5.csv";
 my $voterFileh;
 my @voterDataLine = ();
 my %voterDataLine;
@@ -72,8 +74,8 @@ my %csvRowHash = ();
 my $voterValuesHeading = "";
 my @voterValuesHeading = (
     "state-voter-id",    #0
-    "Precinct",          #2
-    "LastName",          #3
+    "Precinct",          #1
+    "LastName",          #2
     "Birthdate",         #4
     "Reg-Date",          #5
     "Party",             #6
@@ -171,8 +173,7 @@ sub main {
         $linesRead++;
         $linesIncRead++;
         if ( $linesIncRead == 1000 ) {
-            print STDOUT "$linesRead lines processed \n";
-            print "$linesRead lines processed \n";
+            printLine ("$linesRead lines processed \n");
             $linesIncRead = 0;
         }
 
@@ -244,6 +245,6 @@ exit;
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    print $printFileh $datestring . ' ' . $printData;
-    print $datestring . ' ' . $printData;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print (PROGNAME . $datestring . ' ' . $printData);
 }
