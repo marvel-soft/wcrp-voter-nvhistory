@@ -160,7 +160,6 @@ my %schRowHash = ();
 my @schRowHash;
 my @values1;
 my @values2;
-my @date;
 my $voterRank;
 
 my $calastName;
@@ -344,7 +343,7 @@ sub main {
         #  locate county data
         $stats = -1;
         $stats = binary_search( \@voterStatsArray, $voterid );
-        print " $voterid $stats \n";
+        #print " $voterid $stats \n";
         if ( $stats != -1 ) {
             $baseLine{"RegisteredDays"} = $voterStatsArray[$stats][3];
             $baseLine{"Age"}            = $voterStatsArray[$stats][2];
@@ -423,8 +422,7 @@ main();
 EXIT:
 
 printLine("<===> Completed transformation of: $inputFile \n");
-printLine("<===> BASE      SEGMENTS available in file: $baseFile \n");
-printLine("<===> STATS     SEGMENTS available in file: $voterStatsFile \n");
+printLine("<===> BASE LOAD SEGMENTS available in file: $baseFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Emails added: $emailAdded \n");
 printLine("<===> Total Stats  added: $statsAdded \n");

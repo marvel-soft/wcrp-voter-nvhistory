@@ -13,6 +13,7 @@ use File::Basename;
 use DBI;
 use Data::Dumper;
 use Getopt::Long qw(GetOptions);
+use DateTime;
 use Time::Piece;
 use Time::Seconds;
 use Math::Round;
@@ -236,7 +237,6 @@ sub main {
             my ( @date, $yy, $mm, $dd, $now, $age, $regdays );
             @date = split( /\s*\/\s*/, $birthdate, -1 );
 
-            #print "@date \n";
             $mm = sprintf( "%02d", $date[0] );
             $dd = sprintf( "%02d", $date[1] );
             $yy = sprintf( "%02d", substr( $date[2], 0, 4 ) );
@@ -252,18 +252,23 @@ sub main {
             $voterStatLine{"Age"} = $age;
 
             # determine registered days
+            # may get dates in two formats: mm/dd/yyyy or yyyy-mm-dd
             if ( substr( $regdate, 4, 1 ) eq '-' ) {
+
+                # handle yyyy-mm-dd (ISO-8898)
                 @date = split( /\s*\-\s*/, $regdate, -1 );
                 $mm   = $date[1];
                 $dd   = $date[2];
                 $yy   = $date[0];
             }
             else {
+                # handle mm/dd/yyyy
                 @date = split( /\s*\/\s*/, $regdate, -1 );
                 $mm   = sprintf( "%02d", $date[0] );
                 $dd   = sprintf( "%02d", $date[1] );
                 $yy   = sprintf( "%02d", substr( $date[2], 0, 4 ) );
             }
+
             if ( $yy < 1900 ) {
                 $yy = 2016;
             }

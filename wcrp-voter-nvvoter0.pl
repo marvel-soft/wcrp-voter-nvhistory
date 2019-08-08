@@ -41,12 +41,14 @@ no warnings "uninitialized";
 
 my $records;
 
+# input file 1
 my $voterFile = "VoterList.ElgbVtr.45099.073019143713.csv";
 #my $voterFile = "test1.elgbl.voter-5.csv";
 my $voterFileh;
 my @voterDataLine = ();
 my %voterDataLine;
 
+# outut file
 my $voterValuesFile = "votervalues.csv";
 my $voterValuesFileh;
 my @voterValuesLine = ();
@@ -233,7 +235,8 @@ close($voterFileh);
 close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterFile \n");
-printLine("<===> Total Records Read: $linesRead \n");
+printLine("<===> Output written at:       $voterValuesFile \n");
+printLine("<===> Total Records Read:      $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
 close($printFileh);
