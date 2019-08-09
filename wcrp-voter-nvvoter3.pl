@@ -33,7 +33,7 @@ my $records;
 
 # primary input from sec state
 my $inputFile = "VoterList.ElgbVtr.45099.073019143713.csv";
-my $baseFile = "base.csv";
+my $baseFile  = "base.csv";
 my $baseFileh;
 my %baseLine = ();
 my @baseLine;
@@ -173,7 +173,8 @@ my @baseHeading = (
 );
 my @emailProfile;
 my $emailHeading = "";
-my @emailHeading = ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
+my @emailHeading =
+  ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
 
 my @votingLine;
 my $votingLine;
@@ -417,7 +418,9 @@ printLine("<===> Total Records written: $linesWritten \n");
 close(INPUT);
 close($baseFileh);
 close($printFileh);
-close($emailLogFileh);
+if ( $voterEmailFile ne "" ) {
+    close($emailLogFileh);#
+}
 exit;
 
 # $index = binary_search( \@array, $word )
