@@ -30,12 +30,14 @@ my $records;
 
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
+# input file 1
 my $voterHistoryFile = "VoterList.VtHst.45099.073019143713.csv";
 #my $voterHistoryFile = "test1.vthist.voter-5.csv";
 my $voterHistoryFileh;
 my @voterHistoryLine = ();
 my %voterHistoryLine;
 
+# outut voter records
 my $voterDataHeading = "";
 my $voterDataFile    = "voterdata.csv";
 my $voterDataFileh;
@@ -71,6 +73,7 @@ my $linesIncRead    = 0;
 my $linesIncWritten = 0;
 my $currentVoter;
 
+# this header array will need modification after and election cycle
 my @voterDataHeading = (
     "statevoterid",
     "11/06/18 general",
@@ -170,11 +173,6 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-
-    #my @cols = @{ $csv->getline($voterHistoryFileh) };
-    #$row = {};
-    #$csv->bind_columns( \@{$row}{@cols} );
-
     while ( $line1Read = $csv->getline_hr($voterHistoryFileh) ) {
         $linesRead++;
         if ( $linesIncRead == 10000 ) {
@@ -183,7 +181,7 @@ sub main {
             $linesIncRead = 0;
         }
 
-        # then create the values array to complete preprocessing
+        # then create the values array for the record
         %csvRowHash = %{$line1Read};
 
         # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -250,6 +248,7 @@ sub main {
                 printLine ("$linesWritten lines written \n");
                 $linesIncWritten = 0;
             }
+            # set voterid for next record
             $stateVoterID = $currentVoter;
             goto next_voter;
         }
@@ -273,8 +272,9 @@ EXIT:
 close(voterHistoryFileh);
 close($voterDataFileh);
 
-printLine("<===> Completed processing of: $voterHistoryFile \n");
-printLine("<===> Total Records Read: $linesRead \n");
+printLine("<===> Completed processing: $voterHistoryFile \n");
+printLine("<===> Created voter output: $voterDataFile \n");
+printLine("<===> Total Records Read:   $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
 close($printFileh);

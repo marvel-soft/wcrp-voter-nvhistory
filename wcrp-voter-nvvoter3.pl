@@ -31,10 +31,8 @@ no warnings "uninitialized";
 
 my $records;
 
+# primary input from sec state
 my $inputFile = "VoterList.ElgbVtr.45099.073019143713.csv";
-
-#my $inputFile = "test1.elgbl.voter-5.csv";
-
 my $baseFile = "base.csv";
 my $baseFileh;
 my %baseLine = ();
@@ -42,7 +40,7 @@ my @baseLine;
 my $baseLine;
 my @baseProfile;
 
-#my $voterEmailFile = "email-sort.csv";
+# list of email addresses to add
 my $voterEmailFile = "";
 my $voterEmailFileh;
 my @voterEmailArray;
@@ -50,13 +48,14 @@ my $voterEmailArray;
 my @voterEmailHeadings;
 my $voterEmailHeadings;
 
+# email merge error report
 my $emailLogFile = "email-adds-log.csv";
 my $emailLogFileh;
 my %emailLine = ();
 
 #my $voterStatsFile = "voterdata.csv";
 
-#my $voterStatsFile = "voterstat.csv";
+# sorted voter statistic records (by voterid)
 my $voterStatsFile = "voterstat-s.csv";
 my $voterStatsFileh;
 my %voterStatsArray;
@@ -90,7 +89,6 @@ my $linesWritten = 0;
 my $emailAdded   = 0;
 my $statsAdded   = 0;
 
-my $selParty;
 my $skipRecords    = 20;
 my $skippedRecords = 0;
 
@@ -99,11 +97,6 @@ my $party;
 my $primaryCount;
 my $pollCount;
 my $absenteeCount   = 0;
-my $leansRepCount   = 0;
-my $leansDemCount   = 0;
-my $leanRep         = 0;
-my $leanDem         = 0;
-my $leans           = "";
 my $activeVOTERS    = 0;
 my $activeREP       = 0;
 my $activeDEM       = 0;
@@ -149,8 +142,6 @@ my $totalMODOTHR    = 0;
 my $totalWEAKOTHR   = 0;
 my $percentSTRGOTHR = 0;
 my $totalOTHR       = 0;
-my $totalLEANREP    = 0;
-my $totalLEANDEM    = 0;
 
 my @csvRowHash;
 my %csvRowHash = ();
@@ -182,8 +173,7 @@ my @baseHeading = (
 );
 my @emailProfile;
 my $emailHeading = "";
-my @emailHeading =
-  ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
+my @emailHeading = ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
 
 my @votingLine;
 my $votingLine;
@@ -241,7 +231,7 @@ sub main {
     # Build heading for new voting record
     $emailHeading = join( ",", @emailHeading );
     $emailHeading = $emailHeading . "\n";
-    #
+
     # Initialize process loop and open files
     printLine("Voter Base-table file: $baseFile\n");
     open( $baseFileh, ">$baseFile" )
@@ -297,8 +287,8 @@ sub main {
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
         # Assemble database load  for base segment
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
-        %baseLine             = ();
-        $baseLine{"StateID"}  = $csvRowHash{"VoterID"};
+        %baseLine = ();
+        $baseLine{"StateID"} = $csvRowHash{"VoterID"};
         my $voterid = $csvRowHash{"VoterID"};
         $baseLine{"CountyID"} = $csvRowHash{"CountyVoterID"};
         $baseLine{"Status"}   = $csvRowHash{"CountyStatus"};
@@ -306,7 +296,7 @@ sub main {
         $baseLine{'AssmDist'} = $csvRowHash{"AssemblyDistrict"};
         $baseLine{'SenDist'}  = $csvRowHash{"SenateDistrict"};
 
-        # $baseLine{"Precinct"} = substr $csvRowHash{"precinct"}, 0, 6;
+        # convert proper names to upper case first then lower
         my $UCword = $csvRowHash{"FirstName"};
         $UCword =~ s/(\w+)/\u\L$1/g;
         $baseLine{"First"} = $UCword;
@@ -321,7 +311,6 @@ sub main {
         my $cclastName = $UCword;
         $UCword =~ s/(\w+)/\u\L$1/g;
 
-        # $baseLine{"Suffix"} = $csvRowHash{"name_suffix"};
         $baseLine{"BirthDate"} = $csvRowHash{"BirthDate"};
         $baseLine{"RegDate"}   = $csvRowHash{"RegistrationDate"};
         $baseLine{"Party"}     = $csvRowHash{"Party"};
@@ -340,9 +329,10 @@ sub main {
         $baseLine{"email"} = "";
 
         #
-        #  locate county data
+        #  locate and add voter statistics
         $stats = -1;
         $stats = binary_search( \@voterStatsArray, $voterid );
+
         #print " $voterid $stats \n";
         if ( $stats != -1 ) {
             $baseLine{"RegisteredDays"} = $voterStatsArray[$stats][3];
@@ -356,9 +346,7 @@ sub main {
             $baseLine{"Rank"}           = $voterStatsArray[$stats][10];
             $baseLine{"Score"}          = $voterStatsArray[$stats][11];
             $baseLine{"TotalVotes"}     = $voterStatsArray[$stats][12];
-
-            #$baseLine{"Gender"}        = $voterStatsArray[$stats][15];
-            $statsAdded = $statsAdded + 1;
+            $statsAdded                 = $statsAdded + 1;
         }
 #
 #  locate email address
@@ -377,8 +365,6 @@ sub main {
                 $baseLine{"email"} = $voterEmailArray[$emails][4];
                 $capoints          = $voterEmailArray[$emails][7];
                 $capoints =~ s/;/,/g;
-
-             #printLine (" email added: $calastName $camiddleName $caemail \n");
                 $emailAdded = $emailAdded + 1;
 
                 # build a trace line to show email was updated
@@ -434,16 +420,6 @@ close($printFileh);
 close($emailLogFileh);
 exit;
 
-#
-# Print report line
-#
-sub printLine {
-    my $datestring = localtime();
-    ($printData) = @_;
-    print $printFileh PROGNAME . $datestring . ' ' . $printData;
-    print( PROGNAME . $datestring . ' ' . $printData );
-}
-
 # $index = binary_search( \@array, $word )
 #   @array is a list of lowercase strings in alphabetical order.
 #   $word is the target word that might be in the list.
@@ -480,16 +456,6 @@ sub binary_ch_search {
     }
     $try = -1;
     return;             # The word isn't there.
-}
-
-#
-# open and prime next file
-#
-sub preparefile {
-    print "New output file: $baseFile\n";
-    open( baseFileh, ">$baseFile" )
-      or die "Unable to open output: $baseFile Reason: $!";
-    print baseFileh $baseHeading;
 }
 
 #
@@ -532,7 +498,7 @@ sub countParty {
 #
 
 #
-# create the voter stats binary search array
+# create the voter stats array that will be accessed via binary search
 #
 sub voterStatsLoad() {
     print "Started building Voter stats hash \n";
@@ -581,4 +547,13 @@ sub voterEmailLoad() {
     close $voterEmailFileh;
     printLine("email array: $emailCount");
     return @voterEmailArray;
+}
+#
+# Print report line
+#
+sub printLine {
+    my $datestring = localtime();
+    ($printData) = @_;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print( PROGNAME . $datestring . ' ' . $printData );
 }

@@ -31,13 +31,6 @@ no warnings "uninitialized";
 	Input: any csv file with headers
 
 	Output: one or more smaller csv file
-	parms:
-	'infile=s'     => \$inputFile,
-	'outfile=s'    => \$voterDataFile,
-	'maxlines=s'   => \$maxLines,
-	'maxfiles=n'   => \$maxFiles,
-	'help!'        => \$helpReq,
-
 =cut
 
 my $records;
@@ -59,6 +52,7 @@ my %voterStatLine = ();
 my @voterStatLine;
 my @voterStat;
 
+# message file
 my $printFile = "print-.txt";
 my $printFileh;
 
@@ -96,7 +90,6 @@ my @voterStatHeading = (
     "TotalVotes",        #12
 );
 
-my @precinctPolitical;
 my $RegisteredDays   = 0;
 my $pollCount        = 0;
 my $absenteeCount    = 0;
@@ -152,8 +145,6 @@ sub main {
     $csvHeadings = <$voterDataFileh>;
     chomp $csvHeadings;
 
-    #chop $csvHeadings;
-
     # remove imbedded commas and imbedded spaces from headers
     $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
     $csvHeadings =~ s/(?<! ) (?! )//g;
@@ -200,7 +191,6 @@ sub main {
         # replace commas from in between double quotes with a space
         chomp $line1Read;
 
-        #chop $line1Read;
         $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
 
         # then create the values array to complete preprocessing
@@ -216,7 +206,7 @@ sub main {
             $voterStatLine{ $voterStatHeading[$cycle] } = " ";
         }
         #
-        #  locate county data
+        #  locate values data for record
         #
         $voterid = $csvRowHash{statevoterid};
         $stats   = -1;
@@ -224,12 +214,8 @@ sub main {
         if ( $stats != -1 ) {
             $voterStatLine{"Precinct"} = $voterValuesArray[$stats][1];
             $voterStatLine{"LastName"} = $voterValuesArray[$stats][2];
-
-            #$voterStatLine{"Birthdate"} = $voterValuesArray[$stats][3];
             my $birthdate = $voterValuesArray[$stats][3];
-
-            #$voterStatLine{"Reg-Date"} = $voterValuesArray[$stats][4];
-            my $regdate = $voterValuesArray[$stats][4];
+            my $regdate   = $voterValuesArray[$stats][4];
             $voterStatLine{"Party"}       = $voterValuesArray[$stats][5];
             $voterStatLine{"VoterStatus"} = $voterValuesArray[$stats][6];
 
@@ -241,8 +227,6 @@ sub main {
             $dd = sprintf( "%02d", $date[1] );
             $yy = sprintf( "%02d", substr( $date[2], 0, 4 ) );
 
-            # if    ( $yy <= 20 ) { $yy = 2000 + $yy }
-            # elsif ( $yy > 20 )  { $yy = 1900 + $yy }
             $adjustedDate = "$mm/$dd/$yy";
             $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
             $now          = localtime;
@@ -269,16 +253,16 @@ sub main {
                 $yy   = sprintf( "%02d", substr( $date[2], 0, 4 ) );
             }
 
+            # fix for bad dates in file
             if ( $yy < 1900 ) {
                 $yy = 2016;
             }
             $adjustedDate = "$mm/$dd/$yy";
-
-            $before  = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
-            $now     = localtime;
-            $regdays = $now - $before;
-            $regdays = ( $regdays / (86400) );
-            $regdays = round($regdays);
+            $before       = Time::Piece->strptime( $adjustedDate, "%m/%d/%Y" );
+            $now          = localtime;
+            $regdays      = $now - $before;
+            $regdays      = ( $regdays / (86400) );
+            $regdays      = round($regdays);
             $voterStatLine{"RegisteredDays"} = $regdays;
             $statsAdded = $statsAdded + 1;
         }
@@ -332,7 +316,7 @@ close($voterStatFileh);
 close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterDataFile \n");
-printLine("<===> Completed creation of: $voterStatFile \n");
+printLine("<===> Completed creation of:   $voterStatFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
@@ -342,12 +326,6 @@ exit;
 #
 # Print report line
 #
-sub printLine {
-    my $datestring = localtime();
-    ($printData) = @_;
-    print $printFileh PROGNAME . $datestring . ' ' . $printData;
-    print( PROGNAME . $datestring . ' ' . $printData );
-}
 
 #  routine: evaluateVoter
 #
@@ -494,25 +472,7 @@ sub evaluateVoter {
         }
     }
 
-  # Likely voter score:
-  # if registered < 2 years       gen <= 1 || notelig >= 1            = WEAK
-  # if registered < 2 years       gen == 1 ||                         = MODERATE
-  # if registered < 2 years       gen == 2 ||                         = STRONG
-
-  # if registered > 2 < 4 years   gen <= 0 || notelig >= 1            = WEAK
-  # if registered > 2 < 4 years   gen >= 2 && pri >= 0                = MODERATE
-  # if registered > 2 < 4 years   gen >= 3 && pri >= 1                = STRONG
-
-  # if registered > 4 < 8 years   gen >= 0 || notelig >= 1            = WEAK
-  # if registered > 4 < 8 years   gen >= 0 && gen <= 2  and pri == 0  = WEAK
-  # if registered > 4 < 8 years   gen >= 2 && gen <= 5  and pri >= 0  = MODERATE
-  # if registered > 4 < 8 years   gen >= 3 && gen <= 12 and pri >= 0  = STRONG
-
-  # if registered > 8 years   gen >= 0 && gen <= 2 || notelig >= 1    = WEAK
-  # if registered > 8 years   gen >= 0 && gen <= 4  and pri == 0      = WEAK
-  # if registered > 8 years   gen >= 3 && gen <= 9  and pri >= 0      = MODERATE
-    ## if registered > 8 years   gen >= 6 && gen <= 12 and pri >= 0      = STRONG
-
+    # Likely voter score:
     if ( $votesTotal > 0 ) {
         $voterScore  = ( $generalCount + $primaryCount ) / ($votesTotal) * 10;
         $voterScore2 = round($voterScore);
@@ -562,7 +522,7 @@ sub binary_search {
     return;             # The word isn't there.
 }
 #
-# binay search for character strings
+# binary search for character strings
 #
 sub binary_ch_search {
     my ( $try,   $var );
@@ -610,4 +570,11 @@ sub voterValuesLoad() {
     printLine("Completed voterValuesArray for $valuescounter \n");
     close $voterValuesFileh;
     return @voterValuesArray;
+}
+
+sub printLine {
+    my $datestring = localtime();
+    ($printData) = @_;
+    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    print( PROGNAME . $datestring . ' ' . $printData );
 }
