@@ -235,7 +235,7 @@ close($voterFileh);
 close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterFile \n");
-printLine("<===> Output written at:      $voterValuesFile \n");
+printLine("<===> Output written at:       $voterValuesFile \n");
 printLine("<===> Total Records Read:      $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 
