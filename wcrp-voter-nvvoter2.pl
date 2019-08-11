@@ -519,7 +519,7 @@ sub binary_search {
         return $try;    # We've found the word!
     }
     $try = -1;
-    return;             # The word isn't there.
+    return $try;             # The word isn't there.
 }
 #
 # binary search for character strings
@@ -536,7 +536,7 @@ sub binary_ch_search {
         return $try;    # We've found the word!
     }
     $try = -1;
-    return;             # The word isn't there.
+    return $try;             # The word isn't there.
 }
 #
 # create the voter stats binary search array
