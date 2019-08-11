@@ -96,7 +96,7 @@ my @voterDataHeading = (
     "06/03/03 special",
     "11/05/02 general",
     "09/03/02 primary",
-    "TotalVotes ",
+    "totalvotes ",
 );
 
 #
@@ -194,7 +194,7 @@ sub main {
             %voterDataLine = ();
 
             # clear all election date buckets to blanks
-            for ( $cycle = 1 ; $cycle < 20 ; $cycle++ ) {
+            for ( $cycle = 1 ; $cycle <= 21 ; $cycle++ ) {
                 $voterDataLine{ $voterDataHeading[$cycle] } = " ";
             }
         }
@@ -212,7 +212,7 @@ sub main {
 
             # find the correct election for this vote
             # dates must be in Time::Piece format
-            for ( $cycle = 1, $vote = 1 ; $cycle < 20 ; $cycle++, $vote += 1 ) {
+            for ( $cycle = 1, $vote = 1 ; $cycle <= 20 ; $cycle++, $vote += 1 ) {
 
                 # create the earlydate used for testing the votedate
                 my $edate         = substr( $voterDataHeading[$vote], 0, 8 );
@@ -231,7 +231,7 @@ sub main {
             next;
         }
         else {
-            $voterDataLine{"TotalVotes"} = $totalVotes;
+            $voterDataLine{ $voterDataHeading[21]} = $totalVotes;
 
             # prepare to write out the voter data
             @voterData = ();
