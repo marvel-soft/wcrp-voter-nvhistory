@@ -1,0 +1,16 @@
+Ignorance is useful for politics, but not so useful in problem solving.
+
+
+Annie, if you become the NVGOP State party chairman, in a few words, what is your charge to the states delegates and constituents to take the party forward. 
+
+A Democrat is one who promises a plan that tomorrow will fix a problem that he created yesterday.
+
+1) nvvoter0 -> required values from voter roles for subsequent programs (votervalues)
+2) nvvoter1 -> converts the stream of vote produced by the state to a list by voter (voterdata)
+3) csvsort voter values - csvsort -c 1 -e Latin1 votervalues.csv > votervalues-s.csv
+4) nvvoter2 creates voter analysis extracts (voterstat)
+5) csvsort voter stats - csvsort -c 1 -e Latin1 voterstat.csv > voterstat-s.csv
+6) nvvoter3 produce load tables from prior programs and an email list (base)
+
+
+
