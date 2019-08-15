@@ -42,7 +42,8 @@ no warnings "uninitialized";
 my $records;
 
 # input file 1
-my $voterFile = "VoterList.ElgbVtr.45099.073019143713.csv";
+#my $voterFile = "VoterList.ElgbVtr.45099.073019143713.csv";
+my $voterFile = "VoterList.ElgbVtr.wc.20190509.csv";
 #my $voterFile = "test1.elgbl.voter-5.csv";
 my $voterFileh;
 my @voterDataLine = ();
@@ -102,7 +103,7 @@ sub main {
 
     ) or die "Incorrect usage! \n";
     if ($helpReq) {
-        print "Come on, it's really not that hard. \n";
+        printLine ("Come on, it's really not that hard. \n");
     }
     else {
         printLine("My inputfile is: $voterFile. \n");
