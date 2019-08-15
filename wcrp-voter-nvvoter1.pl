@@ -31,7 +31,7 @@ my $records;
 #my $inputFile = "nvsos-voter-history-test-noheading.csv";
 
 #my $voterHistoryFile = "VoterList.VtHst.45099.073019143713.csv";
-my $voterHistoryFile = "VoterList.VtHst.wc.20190509.csv";
+my $voterHistoryFile = "VoterList.VtHst.45099.073019143713.csv";
 #my $voterHistoryFile = "test1.vthist.voter-5.csv";
 my $voterHistoryFileh;
 my @voterHistoryLine = ();
@@ -233,7 +233,6 @@ sub main {
       next_voter:
         if ( $currentVoter eq $stateVoterID ) {
             $voterDataLine{"statevoterid"} = $csvRowHash{"voterid"};
-            print "$stateVoterID \n";
             #
             # place vote in correct bucket (14 days <= electiondate)
             #
@@ -312,7 +311,7 @@ close(voterHistoryFileh);
 close($voterDataFileh);
 
 printLine("<===> Completed processing of: $voterHistoryFile \n");
-printLine("<===> Output file            : $voterDataFile \n");
+printLine("<===> Completed creation of  : $voterDataFile \n");
 printLine("<===> Total Records Read: $linesRead \n");
 printLine("<===> Total Records written: $linesWritten \n");
 printLine("<===> Total Old Vote Records Ignored: $ignored \n");

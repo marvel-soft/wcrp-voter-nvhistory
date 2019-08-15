@@ -120,8 +120,8 @@ my $votesTotal       = 0;
 my $voterScore       = 0;
 my $voterScore2      = 0;
 
-my $errFlag =0;
-my $tmp = 0;
+my $errFlag = 0;
+my $tmp     = 0;
 
 #
 # main program controller
@@ -130,16 +130,16 @@ sub main {
 
     my $csv = Text::CSV->new(
         {
-        binary             => 1,  # Allow special character. Always set this
-        auto_diag          => 1,  # Report irregularities immediately
-        allow_whitespace   => 0,
-        allow_loose_quotes => 1,
-        quote_space        => 0,
+            binary             => 1,  # Allow special character. Always set this
+            auto_diag          => 1,  # Report irregularities immediately
+            allow_whitespace   => 0,
+            allow_loose_quotes => 1,
+            quote_space        => 0,
         }
     );
 
     #Open file for messages and errors
-    open( $printFileh, '>>' , "$printFile" )
+    open( $printFileh, '>>', "$printFile" )
       or die "Unable to open PRINT: $printFile Reason: $!";
 
     # Parse any parameters
@@ -163,7 +163,7 @@ sub main {
     }
 
     # pick out the heading line and hold it and remove end character
-    $line1Read = $csv->getline ( $voterDataFileh );
+    $line1Read = $csv->getline($voterDataFileh);
 
     # move headings into an array to modify
     @csvHeadings = @$line1Read;
@@ -197,7 +197,7 @@ sub main {
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   NEW:
-    while ( $line1Read = $csv->getline( $voterDataFileh ) ) {
+    while ( $line1Read = $csv->getline($voterDataFileh) ) {
         $linesRead++;
         $linesIncRead++;
         if ( $linesIncRead >= 10000 ) {
@@ -224,13 +224,14 @@ sub main {
         $stats   = -1;
         $stats   = binary_search( \@voterValuesArray, $voterid );
         if ( $stats != -1 ) {
-            if ( $voterid != $errFlag) {
+            if ( $voterid != $errFlag ) {
                 $errFlag = $voterid;
-                if ($voterValuesArray[$stats][7] eq "Yes"){
+                if ( $voterValuesArray[$stats][7] eq "Yes" ) {
                     printLine("Out of order voter $voterid\n");
                 }
             }
-            $voterValuesArray[$stats][7] = "Yes";                               #mark array as person has voted
+            $voterValuesArray[$stats][7] =
+              "Yes";    #mark array as person has voted
             $voterStatLine{"Precinct"} = $voterValuesArray[$stats][1];
             $voterStatLine{"LastName"} = $voterValuesArray[$stats][2];
             my $ln = $voterValuesArray[$stats][2];
@@ -291,8 +292,10 @@ sub main {
             $regdays = round($regdays);
             $voterStatLine{"RegisteredDays"} = $regdays;
             $statsAdded = $statsAdded + 1;
-        }else{
-          printLine("++++> Error: Search Failed to find Voter ID = $voterid \n")
+        }
+        else {
+            printLine(
+                "++++> Error: Search Failed to find Voter ID = $voterid \n");
         }
 
         $voterStatLine{"statevoterid"} = $csvRowHash{"statevoterid"};
@@ -322,26 +325,30 @@ sub main {
         $linesWritten++;
         $cycle = 1;
     }
-    my $numNoVote = 0;
+    my $numNoVote  = 0;
     my $numYesVote = 0;
-    my $j = @voterValuesArray;
+    my $j          = @voterValuesArray;
     printLine("Processing $j voters for non-voting entries...\n");
-    for ( my $i = 0 ; $i <= ($j-1) ; $i++ ) {
-        if ($voterValuesArray[$i][7] ne "Yes") {
+    for ( my $i = 0 ; $i <= ( $j - 1 ) ; $i++ ) {
+        if ( $voterValuesArray[$i][7] ne "Yes" ) {
             $numNoVote++;
-       } else {
+        }
+        else {
             $numYesVote++;
-       }
+        }
     }
-    printLine("Total Registered Voters who did not vote = $numNoVote, Voted = $numYesVote\n");
+    printLine(
+"Total Registered Voters who did not vote = $numNoVote, Voted = $numYesVote\n"
+    );
     #
     # For now this is the in-elegant way I detect completion
-#
-#   if ( eof($voterDataFileh) ) {
-#       printLine("EOF being detected again\n");
-#       goto EXIT;
-#   }
-#    next;
+    # left in for history
+    #
+    #   if ( eof($voterDataFileh) ) {
+    #       printLine("EOF being detected again\n");
+    #       goto EXIT;
+    #   }
+    #    next;
 }
 
 #
@@ -356,7 +363,10 @@ close($voterStatFileh);
 close($voterValuesFileh);
 
 printLine("<===> Completed processing of: $voterDataFile \n");
-printLine("<===> Completed creation of: $voterStatFile \n");
+printLine(
+    "<===> Completed creation of
+: $voterStatFile \n"
+);
 printLine("<===> Total Records Read: $linesRead\n");
 printLine("<===> Total Records written: $linesWritten \n");
 
@@ -369,7 +379,7 @@ exit;
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    if ( substr( $printData , -1 ) ne "\r") {
+    if ( substr( $printData, -1 ) ne "\r" ) {
         print $printFileh PROGNAME . $datestring . ' ' . $printData;
     }
     print( PROGNAME . $datestring . ' ' . $printData );
@@ -394,8 +404,8 @@ sub evaluateVoter {
     my $primaryPollCount  = 0;
     my $primaryEarlyCount = 0;
     my $primaryNotVote    = 0;
-    my $badcode = 0;
-    my $badstring = "";
+    my $badcode           = 0;
+    my $badstring         = "";
     $generalCount     = 0;
     $primaryCount     = 0;
     $pollCount        = 0;
@@ -406,12 +416,13 @@ sub evaluateVoter {
     $voterRank        = '';
 
     #set pointer to first vote in list
-    my $vote = 1;
+    my $vote           = 1;
     my $daysRegistered = $voterStatLine{"Registered Days"};
 
     for ( my $cycle = 1 ; $cycle <= 20 ; $cycle++, $vote += 1 ) {
-        $badcode = 1;
-        $badstring = ( $csvRowHash{ $csvHeadings[$vote] } ) ;
+        $badcode   = 1;
+        $badstring = ( $csvRowHash{ $csvHeadings[$vote] } );
+
 # each election type is specified with its date - we only process primary/general
 # skip mock election
         if ( ( $csvHeadings[$vote] ) =~ m/mock/ ) {
@@ -462,23 +473,23 @@ sub evaluateVoter {
                 $generalPollCount += 1;
                 $generalCount     += 1;
                 $pollCount        += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'FW' ) {
                 $generalPollCount += 1;
                 $generalCount     += 1;
                 $pollCount        += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
                 $generalEarlyCount += 1;
                 $generalCount      += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
@@ -486,20 +497,22 @@ sub evaluateVoter {
                 $generalCount      += 1;
                 $mailCount         += 1;
                 $absenteeCount     += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
                 $generalCount     += 1;
                 $provisionalCount += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
-            if ($badcode != 0) {
-                printLine("Unknown General Election Code $badstring for voter $voterid \n");
-                $badcode=0;
+            if ( $badcode != 0 ) {
+                printLine(
+"Unknown General Election Code $badstring for voter $voterid \n"
+                );
+                $badcode = 0;
             }
         }
 
@@ -526,15 +539,15 @@ sub evaluateVoter {
                 $primaryPollCount += 1;
                 $primaryCount     += 1;
                 $pollCount        += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'EV' ) {
                 $primaryEarlyCount += 1;
                 $primaryCount      += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'MB' ) {
@@ -542,52 +555,40 @@ sub evaluateVoter {
                 $primaryCount      += 1;
                 $mailCount         += 1;
                 $absenteeCount     += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
             }
             if ( $csvRowHash{ $csvHeadings[$vote] } eq 'PV' ) {
                 $primaryCount     += 1;
                 $provisionalCount += 1;
-                $votesTotal  = $vote;
-                $badcode = 0;
+                $votesTotal = $vote;
+                $badcode    = 0;
                 next;
-            } 
-            if ($badcode != 0) {
-                printLine("Unknown Primary Election Code $badstring for voter $voterid } \n");
+            }
+            if ( $badcode != 0 ) {
+                printLine(
+"Unknown Primary Election Code $badstring for voter $voterid } \n"
+                );
                 $badcode = 0;
             }
         }
-        if ($badcode !=0) {
+        if ( $badcode != 0 ) {
             printLine("Unknown Vote Code $badstring for voter $voterid \n");
             $badcode = 0;
         }
     }
 
-  # Likely voter score:
-  # if registered < 2 years       gen <= 1 || notelig >= 1            = WEAK
-  # if registered < 2 years       gen == 1 ||                         = MODERATE
-  # if registered < 2 years       gen == 2 ||                         = STRONG
-
-  # if registered > 2 < 4 years   gen <= 0 || notelig >= 1            = WEAK
-  # if registered > 2 < 4 years   gen >= 2 && pri >= 0                = MODERATE
-  # if registered > 2 < 4 years   gen >= 3 && pri >= 1                = STRONG
-
-  # if registered > 4 < 8 years   gen >= 0 || notelig >= 1            = WEAK
-  # if registered > 4 < 8 years   gen >= 0 && gen <= 2  and pri == 0  = WEAK
-  # if registered > 4 < 8 years   gen >= 2 && gen <= 5  and pri >= 0  = MODERATE
-  # if registered > 4 < 8 years   gen >= 3 && gen <= 12 and pri >= 0  = STRONG
-
-  # if registered > 8 years   gen >= 0 && gen <= 2 || notelig >= 1    = WEAK
-  # if registered > 8 years   gen >= 0 && gen <= 4  and pri == 0      = WEAK
-  # if registered > 8 years   gen >= 3 && gen <= 9  and pri >= 0      = MODERATE
-    ## if registered > 8 years   gen >= 6 && gen <= 12 and pri >= 0      = STRONG
-
+    # LIKELY VOTER SCORE:
     if ( $votesTotal > 0 ) {
         $voterScore  = ( $generalCount + $primaryCount ) / ($votesTotal) * 10;
         $voterScore2 = round($voterScore);
     }
 
+    # VOTER RANK
+    # STRONG ..... 6-9
+    # MODERATE ... 3-5
+    # WEAK ....... 1-2
     if ( $voterScore2 > 5 ) {
         $voterRank = "STRONG";
     }
@@ -626,10 +627,10 @@ sub binary_search {
         $var = $array->[$try][0];
         $low  = $try + 1, next if $array->[$try][0] < $word;    # Raise bottom
         $high = $try - 1, next if $array->[$try][0] > $word;    # Lower top
-        return int($try+.5);    # We've found the word!
+        return int( $try + .5 );    # We've found the word!
     }
     $try = -1;
-    return $try;             # The word isn't there.
+    return $try;                    # The word isn't there.
 }
 #
 # binay search for character strings
@@ -646,18 +647,20 @@ sub binary_ch_search {
         return $try;    # We've found the word!
     }
     $try = -1;
-    return $try;             # The word isn't there.
+    return $try;        # The word isn't there.
 }
 #
 # create the voter stats binary search array
 #
 sub voterValuesLoad() {
     printLine("Starting to load voter values array \n");
-    my $valuescounter = 0, $incCounter = 0; $i=0;
+    my $valuescounter = 0, $incCounter = 0;
+    $i                   = 0;
     $voterValuesHeadings = "";
     open( $voterValuesFileh, $voterValuesFile )
       or die "Unable to open INPUT: $voterValuesFile Reason: $!";
-            # prepare to use text::csv module
+
+    # prepare to use text::csv module
     # build the constructor
     my $Vcsv = Text::CSV->new(
         {
@@ -668,18 +671,20 @@ sub voterValuesLoad() {
             quote_space        => 0,
         }
     );
+
     # Build the UID->survey hash
-    $voterValuesHeadings = $Vcsv->getline ($voterValuesFileh); # get header 
+    $voterValuesHeadings = $Vcsv->getline($voterValuesFileh);    # get header
     $voterValuesHeadings->[7] = "Voted";
-    my $row = (); 
-    $incCounter = 0; 
-    while ( $row = $Vcsv->getline ($voterValuesFileh) ) {
+    my $row = ();
+    $incCounter = 0;
+    while ( $row = $Vcsv->getline($voterValuesFileh) ) {
+
         # create next array row and copy fields read into it
-        my @values1 = (0,0,0,0,0,0,0,"");
-        for ($i = 0; $i < 7; $i++) {
+        my @values1 = ( 0, 0, 0, 0, 0, 0, 0, "" );
+        for ( $i = 0 ; $i < 7 ; $i++ ) {
             $values1[$i] = $row->[$i];
         }
-        $values1[7] = "No";                              # init to no votes for this voter
+        $values1[7] = "No";    # init to no votes for this voter
         push @voterValuesArray, \@values1;
         $valuescounter++;
         $incCounter++;

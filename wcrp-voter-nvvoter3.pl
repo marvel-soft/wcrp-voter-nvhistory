@@ -433,13 +433,13 @@ main();
 # Common Exit
 EXIT:
 
-printLine("<===> Completed transformation of: $inputFile \n");
-printLine("<===> BASE LOAD SEGMENTS available in file: $baseFile \n");
+printLine("<===> Completed transformation of:     $inputFile \n");
+printLine("<===> BASE LOAD SEGMENTS available in: $baseFile \n");
 printLine("<===> Total Eligible Voter Records Read: $linesRead \n");
 printLine("<===> Total Registered Voters with no Vote History: $noVotes\n");
-printLine("<===> Total Email Addresses added: $emailAdded \n");
+printLine("<===> Total Email Addresses added:      $emailAdded \n");
 printLine("<===> Total Voting History Stats added: $statsAdded \n");
-printLine("<===> Total base.csv Records written: $linesWritten \n");
+printLine("<===> Total base.csv Records written:   $linesWritten \n");
 
 close($inputFileh);
 close($baseFileh);
