@@ -15,6 +15,7 @@ use Getopt::Long qw(GetOptions);
 use Time::Piece;
 use Math::Round;
 use constant PROGNAME => "NVVOTER3 - ";
+use Text::CSV qw( csv );
 
 no warnings "uninitialized";
 
@@ -33,7 +34,8 @@ my $records;
 
 # primary input from sec state
 my $inputFile = "VoterList.ElgbVtr.45099.073019143713.csv";
-my $baseFile  = "base.csv";
+my $inputFileh;
+my $baseFile = "base.csv";
 my $baseFileh;
 my %baseLine = ();
 my @baseLine;
@@ -56,7 +58,7 @@ my %emailLine = ();
 #my $voterStatsFile = "voterdata.csv";
 
 # sorted voter statistic records (by voterid)
-my $voterStatsFile = "voterstat-s.csv";
+my $voterStatsFile = "voterstat.csv";
 my $voterStatsFileh;
 my %voterStatsArray;
 my @voterStatsArray;
@@ -64,7 +66,7 @@ my $voterStatsArray;
 my $voterStatsHeadings = "";
 my @voterStatsHeadings;
 
-my $printFile = "print-.txt";
+my $printFile = "print.txt";
 my $printFileh;
 
 my %politicalLine   = ();
@@ -162,7 +164,7 @@ my $capoints;
 my $baseHeading = "";
 my @baseHeading = (
     "CountyID",   "StateID",  "Status",      "Precinct",
-    "AssmDist",   "Sendist",  "First",       "Last",
+    "AssmDist",   "SenDist",  "First",       "Last",
     "Middle",     "Suffix",   "Phone",       "email",
     "BirthDate",  "RegDate",  "Party",       "StreetNo",
     "StreetName", "Address1", "Address2",    "City",
@@ -173,14 +175,14 @@ my @baseHeading = (
 );
 my @emailProfile;
 my $emailHeading = "";
-my @emailHeading =
-  ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
+my @emailHeading = ( "VoterID", "Precinct", "First", "Last", "Middle", "email", );
 
 my @votingLine;
 my $votingLine;
 my @votingProfile;
 
 my $precinct = "000000";
+my $noVotes = 0;
 
 #
 # main program controller
@@ -188,7 +190,7 @@ my $precinct = "000000";
 sub main {
 
     #Open file for messages and errors
-    open( $printFileh, ">$printFile" )
+    open( $printFileh, '>>' , "$printFile" )
       or die "Unable to open PRINT: $printFile Reason: $!";
 
     # Parse any parameters
@@ -202,28 +204,38 @@ sub main {
         'votecycle'   => \$voteCycle,
         'help!'       => \$helpReq,
     ) or die "Incorrect usage!\n";
+
+    my $csv = Text::CSV->new(
+        {
+        binary             => 1,  # Allow special character. Always set this
+        auto_diag          => 1,  # Report irregularities immediately
+        allow_whitespace   => 0,
+        allow_loose_quotes => 1,
+        quote_space        => 0,
+        }
+    );
+
     if ($helpReq) {
         print "Come on, it's really not that hard.\n";
     }
     else {
         printLine("My inputfile is: $inputFile.\n");
     }
-    unless ( open( INPUT, $inputFile ) ) {
+    unless ( open( $inputFileh, $inputFile ) ) {
         printLine("Unable to open INPUT: $inputFile Reason: $!\n");
         die;
     }
 
-    # pick out the heading line and hold it and remove end character
-    $csvHeadings = <INPUT>;
-    chomp $csvHeadings;
+    # pick out the heading line and hold it
+    $line1Read = $csv->getline ( $inputFileh );
 
-    # remove imbedded commas and imbedded spaces from headers
-    $csvHeadings =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-    $csvHeadings =~ s/(?<! ) (?! )//g;
-
-    # headings in an array to modify
-    # @csvHeadings will be used to create the files
-    @csvHeadings = split( /\s*,\s*/, $csvHeadings );
+    # move headings into an array to modify
+    @csvHeadings = @$line1Read;
+    # Remove spaces in headings
+    my $j = @csvHeadings;
+    for (my $i=0; $i < ($j-1); $i++) {
+        $csvHeadings[$i] =~ s/\s//g;
+    }
 
     # Build heading for new voter record
     $baseHeading = join( ",", @baseHeading );
@@ -264,25 +276,17 @@ sub main {
     #----------------------------------------------------------
 
   NEW:
-    while ( $line1Read = <INPUT> ) {
+    my $tmp = "";
+    while ( $line1Read = $csv->getline( $inputFileh )  ) {
         $linesRead++;
         $linesIncRead++;
-        if ( $linesIncRead == 5000 ) {
-            printLine("$linesRead lines processed\n");
+        if ( $linesIncRead == 10000 ) {
+            printLine("$linesRead lines processed\r");
             $linesIncRead = 0;
         }
-        #
-        # Get the data into an array that matches the headers array
-        chomp $line1Read;
 
-        # replace commas from in between double quotes with a space
-        $line1Read =~ s/(?:\G(?!\A)|[^"]*")[^",]*\K(?:,|"(*SKIP)(*FAIL))/ /g;
-        $line1Read =~ s/\"/ /g;
-
-        # then create the values array
-        @values1 = split( /\s*,\s*/, $line1Read, -1 );
-
-        # Create hash of line for transformation
+        # create the values array to complete preprocessing
+        @values1 = @$line1Read;
         @csvRowHash{@csvHeadings} = @values1;
 
         #- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -308,6 +312,9 @@ sub main {
         $baseLine{"Middle"} = $UCword;
         $UCword = $csvRowHash{"LastName"};
         $UCword =~ s/(\w+)/\u\L$1/g;
+        if ($UCword =~ m/,/) {
+            $UCword = "\"" . $UCword . "\"";
+        }
         $baseLine{"Last"} = $UCword;
         my $cclastName = $UCword;
         $UCword =~ s/(\w+)/\u\L$1/g;
@@ -348,6 +355,23 @@ sub main {
             $baseLine{"Score"}          = $voterStatsArray[$stats][11];
             $baseLine{"TotalVotes"}     = $voterStatsArray[$stats][12];
             $statsAdded                 = $statsAdded + 1;
+            if ( $baseLine{"TotalVotes"} == 0) {
+                $noVotes++;
+            }
+        }else {
+            # fill in record for registered voter with no vote history
+            $noVotes++;
+            $baseLine{"RegisteredDays"} = 0;
+            $baseLine{"Age"}            = 0;
+            $baseLine{"Generals"}       = 0;
+            $baseLine{"Primaries"}      = 0;
+            $baseLine{"Polls"}          = 0;
+            $baseLine{"Absentee"}       = 0;
+            $baseLine{"Mail"}           = 0;
+            $baseLine{"Provisional"}    = 0;
+            $baseLine{"Rank"}           = "WEAK";
+            $baseLine{"Score"}          = 0;
+            $baseLine{"TotalVotes"}     = 0;
         }
 #
 #  locate email address
@@ -357,6 +381,7 @@ sub main {
         #if ( $voterEmailFile ne "" ) {
         $emails = binary_ch_search( \@voterEmailArray, $cclastName );
         if ( $emails != -1 ) {
+            printLine("Email index = $emails not -1\n");
             if (   $voterEmailArray[$emails][0] eq $cclastName
                 && $voterEmailArray[$emails][1] eq $ccfirstName )
             {
@@ -391,15 +416,15 @@ sub main {
         print $baseFileh join( ',', @baseProfile ), "\n";
 
         $linesWritten++;
-        #
-        # For now this is the in-elegant way I detect completion
-        if ( eof(INPUT) ) {
-            goto EXIT;
-        }
-        next;
+#        #
+#        # For now this is the in-elegant way I detect completion
+#        if ( eof(INPUT) ) {
+#            goto EXIT;
+#        }
+#        next;
     }
     #
-    goto NEW;
+#    goto NEW;
 }
 #
 # call main program controller
@@ -410,16 +435,17 @@ EXIT:
 
 printLine("<===> Completed transformation of: $inputFile \n");
 printLine("<===> BASE LOAD SEGMENTS available in file: $baseFile \n");
-printLine("<===> Total Records Read: $linesRead \n");
-printLine("<===> Total Emails added: $emailAdded \n");
-printLine("<===> Total Stats  added: $statsAdded \n");
-printLine("<===> Total Records written: $linesWritten \n");
+printLine("<===> Total Eligible Voter Records Read: $linesRead \n");
+printLine("<===> Total Registered Voters with no Vote History: $noVotes\n");
+printLine("<===> Total Email Addresses added: $emailAdded \n");
+printLine("<===> Total Voting History Stats added: $statsAdded \n");
+printLine("<===> Total base.csv Records written: $linesWritten \n");
 
-close(INPUT);
+close($inputFileh);
 close($baseFileh);
 close($printFileh);
 if ( $voterEmailFile ne "" ) {
-    close($emailLogFileh);#
+    close($emailLogFileh);
 }
 exit;
 
@@ -441,7 +467,7 @@ sub binary_search {
         print "$try \n";
     }
     $try = -1;
-    return;             # The word isn't there.
+    return $try;             # The word isn't there.
 }
 #
 # binay search for character strings
@@ -458,7 +484,7 @@ sub binary_ch_search {
         return $try;    # We've found the word!
     }
     $try = -1;
-    return;             # The word isn't there.
+    return $try;             # The word isn't there.
 }
 
 #
@@ -504,25 +530,33 @@ sub countParty {
 # create the voter stats array that will be accessed via binary search
 #
 sub voterStatsLoad() {
-    print "Started building Voter stats hash \n";
+    printLine("Started building Voter stats hash \n");
+
+    my $loadCnt = 0;
+    my $Scsv = Text::CSV->new(
+        {
+            binary             => 1,  # Allow special character. Always set this
+            auto_diag          => 1,  # Report irregularities immediately
+            allow_whitespace   => 0,
+            allow_loose_quotes => 1,
+            quote_space        => 0,
+        }
+    );
 
     $voterStatsHeadings = "";
     open( $voterStatsFileh, $voterStatsFile )
       or die "Unable to open INPUT: $voterStatsFile Reason: $!";
-    $voterStatsHeadings = <$voterStatsFileh>;
-    chomp $voterStatsHeadings;
 
-    # headings in an array to modify
-    @voterStatsHeadings = split( /\s*,\s*/, $voterStatsHeadings );
-
+    $line1Read = $Scsv->getline ($voterStatsFileh); # get header 
+    @voterStatsHeadings = @$line1Read;              # in voter Stats Headings Array
     # Build the UID->survey hash
-    while ( $line1Read = <$voterStatsFileh> ) {
-        chomp $line1Read;
-        my @values1 = split( /\s*,\s*/, $line1Read, -1 );
+    while ( $line1Read = $Scsv->getline( $voterStatsFileh ) ) {
+        my @values1 = @$line1Read;
         push @voterStatsArray, \@values1;
+        $loadCnt++;
     }
     close $voterStatsFileh;
-    print "Completed building Voter stats hash \n";
+    printLine("Completed building Voter stats hash for $loadCnt voters.\n");
     return @voterStatsArray;
 }
 
@@ -535,6 +569,7 @@ sub voterEmailLoad() {
       or die "Unable to open INPUT: $voterEmailFile Reason: $!";
     $voterEmailHeadings = <$voterEmailFileh>;
     chomp $voterEmailHeadings;
+    printLine("Started Building email address array\n");
 
     # headings in an array to modify
     @voterEmailHeadings = split( /\s*,\s*/, $voterEmailHeadings );
@@ -548,7 +583,7 @@ sub voterEmailLoad() {
         $emailCount = $emailCount + 1;
     }
     close $voterEmailFileh;
-    printLine("email array: $emailCount");
+    printLine("Loaded email array: $emailCount entries");
     return @voterEmailArray;
 }
 #
@@ -557,6 +592,8 @@ sub voterEmailLoad() {
 sub printLine {
     my $datestring = localtime();
     ($printData) = @_;
-    print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    if ( substr( $printData , -1 ) ne "\r") {
+        print $printFileh PROGNAME . $datestring . ' ' . $printData;
+    }
     print( PROGNAME . $datestring . ' ' . $printData );
 }
